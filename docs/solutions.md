@@ -31,3 +31,13 @@
 - Context: without explicit startup orchestration, schema deployment can be skipped and API may start against outdated DB schema.
 - Resolution: added `scripts/start-prod.sh` to run `./node_modules/.bin/prisma migrate deploy` with retry before `node dist/main.js`; wired it in Docker `CMD`.
 - Result: production container startup now enforces migration application before API process launch.
+
+### Problem: VM bootstrap still required manual package installation before deployment
+- Context: existing deployment flow expected Docker and other system dependencies to be preinstalled on target server.
+- Resolution: added `scripts/bootstrap-server.sh` entrypoint to detect/install missing `docker`, `node`, `postgresql`, `git`, and `curl`, then clone/pull repo and run production deploy.
+- Result: server provisioning + deployment is available through one `curl | bash` command.
+
+### Problem: unsafe placeholders in `.env.production` could accidentally reach deployment
+- Context: auto-generated env file from template may keep placeholder values (`replace_me`, `change_me_strong_password`), leading to unsafe startup.
+- Resolution: bootstrap script validates env file and stops by default if placeholders are present; explicit override requires `ALLOW_PLACEHOLDER_ENV=1`.
+- Result: safer default deployment behavior with explicit opt-in for test-only placeholder runs.

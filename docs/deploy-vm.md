@@ -2,6 +2,16 @@
 
 verified at 2026-04-29
 
+## 0. One-command bootstrap option
+
+If you want full bootstrap + deploy in one command, use:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Forspeed911/MajorModels/main/scripts/bootstrap-server.sh | sudo bash
+```
+
+Detailed parameters are documented in `docs/deploy-one-command.md`.
+
 ## 1. VM prerequisites
 
 Install on VM:

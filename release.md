@@ -1,5 +1,19 @@
 # Release Notes
 
+## v0.4.0
+- Added one-command Linux server bootstrap/deploy script:
+  - `scripts/bootstrap-server.sh`
+- Script capabilities:
+  - detects package manager (`apt`/`dnf`/`yum`)
+  - installs missing components (`docker`, `docker compose`, `node`, `postgresql`, `git`, `curl`)
+  - clones/updates repository from GitHub
+  - prepares `.env.production` (optional download via `ENV_FILE_URL`)
+  - deploys stack via `docker compose ... up -d --build`
+- Added safety check for placeholder secrets in env file (override: `ALLOW_PLACEHOLDER_ENV=1`).
+- Added one-command deployment docs:
+  - `docs/deploy-one-command.md`
+  - updated `docs/deploy-vm.md` with bootstrap shortcut
+
 ## v0.3.0
 - Added VM production deployment package:
   - `Dockerfile` (multi-stage build/runtime)

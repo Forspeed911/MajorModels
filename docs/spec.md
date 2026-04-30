@@ -35,6 +35,7 @@ verified at 2026-04-30
 - one-command bootstrap/deploy скрипт для Linux VM
   - интерактивный ввод `POSTGRES_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`
   - автонастройка `DATABASE_URL` на локальную БД контейнера (`db:5432`)
+  - создание внешнего persistent Docker volume для БД (`DB_VOLUME_NAME`)
 
 ### 2.2 Следующий обязательный этап
 
@@ -265,7 +266,7 @@ Inline callback-действия:
 
 - `docker-compose.prod.yml`
 - Сервисы: `api`, `db`
-- `db`: postgres:16-alpine + persistent volume
+- `db`: postgres:16-alpine + external persistent volume
 - `api`: build из `Dockerfile`, health-check по `/api/v1/health`
 
 ### 8.2 Startup behavior
@@ -289,6 +290,7 @@ Entrypoint `scripts/start-prod.sh`:
 - подготовка `.env.production`
 - интерактивный ввод обязательных секретов (при placeholder значениях)
 - автоформирование `DATABASE_URL` для same-server DB (`postgresql://<user>:<password>@db:5432/<db>?schema=public`)
+- создание внешнего volume для данных БД (`DB_VOLUME_NAME`, default `majormodels_postgres_data_prod`)
 - `docker compose up -d --build`
 
 Переменные Telegram bot UX:
@@ -296,6 +298,8 @@ Entrypoint `scripts/start-prod.sh`:
 - `TELEGRAM_BOT_TOKEN` — токен бота
 - `TELEGRAM_BACKEND_BASE_URL` (опционально) — базовый URL backend API для bot-клиента. По умолчанию используется `http://127.0.0.1:${PORT}/api/v1`.
 - `PROMPT_FOR_SECRETS` — включает интерактивный ввод секретов в bootstrap (`1` по умолчанию)
+- `DB_VOLUME_NAME` — имя внешнего Docker volume для данных PostgreSQL
+- данные БД не удаляются при `docker compose down -v`, но могут быть удалены вручную через `docker volume rm`
 
 ## 9. Нефункциональные требования
 

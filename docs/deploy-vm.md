@@ -47,6 +47,7 @@ Edit `.env.production` and set strong secrets:
 
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
+- `DB_VOLUME_NAME` (default `majormodels_postgres_data_prod`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ADMIN_CHAT_ID`
 - `TELEGRAM_BACKEND_BASE_URL` (optional, default `http://127.0.0.1:${PORT}/api/v1`)
@@ -56,6 +57,7 @@ Edit `.env.production` and set strong secrets:
 Run in project root:
 
 ```bash
+docker volume create "${DB_VOLUME_NAME:-majormodels_postgres_data_prod}"
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
@@ -113,8 +115,10 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
 ## 8. Data persistence
 
-PostgreSQL data is stored in Docker volume `postgres_data_prod`.
+PostgreSQL data is stored in external Docker volume from `DB_VOLUME_NAME` (default `majormodels_postgres_data_prod`).
 It survives container recreation.
+`docker compose down -v` does not remove this external volume.
+Manual `docker volume rm <name>` still removes data and must be avoided in production.
 
 ## 9. Minimal rollback
 

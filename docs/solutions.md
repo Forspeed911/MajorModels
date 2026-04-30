@@ -1,5 +1,12 @@
 # Solutions Log
 
+## 2026-04-30
+
+### Problem: DB data could be lost via `docker compose down -v` on production stack
+- Context: named volume managed directly by Compose can be removed in destructive cleanup flows, which conflicts with strict persistence requirements.
+- Resolution: converted PostgreSQL storage to external Docker volume (`DB_VOLUME_NAME`) in `docker-compose.prod.yml` and added bootstrap step to auto-create that volume before deployment.
+- Result: standard compose teardown no longer removes DB storage; data persistence is decoupled from compose lifecycle.
+
 ## 2026-04-29
 
 ### Problem: Prisma 7 schema incompatibility

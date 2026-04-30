@@ -36,3 +36,5 @@ services:
 
 volumes:
   postgres_data_prod:
+    name: ${DB_VOLUME_NAME:-majormodels_postgres_data_prod}
+    external: true

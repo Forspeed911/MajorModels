@@ -20,7 +20,8 @@ Database runs on the same server in Docker (`db` service from `docker-compose.pr
    - `POSTGRES_PASSWORD`
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_ADMIN_CHAT_ID`
-9. run deployment:
+9. create persistent external Docker volume for DB data (`DB_VOLUME_NAME`)
+10. run deployment:
    `docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build`
 
 ## Quick start (recommended)
@@ -61,6 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/Forspeed911/MajorModels/main/script
 - `SKIP_DEPLOY` (`1`/`0`, default `0`)
 - `ALLOW_PLACEHOLDER_ENV` (`1`/`0`, default `0`)
 - `PROMPT_FOR_SECRETS` (`1`/`0`, default `1`)
+- `DB_VOLUME_NAME` (default `majormodels_postgres_data_prod`)
 
 ## Notes
 
@@ -70,3 +72,4 @@ curl -fsSL https://raw.githubusercontent.com/Forspeed911/MajorModels/main/script
 - For production, use real secrets and avoid placeholder mode.
 - To force bot API routing through a specific host, set `TELEGRAM_BACKEND_BASE_URL` in `.env.production`.
 - Auto-generated `DATABASE_URL` requires URL-safe password characters (`A-Z a-z 0-9 . _ ~ -`).
+- DB storage uses external volume `DB_VOLUME_NAME`, so `docker compose down -v` does not remove DB data.

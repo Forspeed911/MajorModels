@@ -14,6 +14,7 @@ INSTALL_POSTGRESQL="${INSTALL_POSTGRESQL:-0}"
 SKIP_DEPLOY="${SKIP_DEPLOY:-0}"
 ALLOW_PLACEHOLDER_ENV="${ALLOW_PLACEHOLDER_ENV:-0}"
 PROMPT_FOR_SECRETS="${PROMPT_FOR_SECRETS:-1}"
+DB_VOLUME_NAME_DEFAULT="majormodels_postgres_data_prod"
 
 APT_UPDATED=0
 PKG_MANAGER=""
@@ -102,6 +103,11 @@ is_url_component_safe() {
   [[ "$value" =~ ^[A-Za-z0-9._~-]+$ ]]
 }
 
+is_docker_volume_name_safe() {
+  local value="$1"
+  [[ "$value" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]
+}
+
 build_local_database_url() {
   local db_name="$1"
   local db_user="$2"
@@ -134,6 +140,12 @@ else
   fi
   SUDO_CMD=(sudo)
 fi
+
+INSTALL_OWNER="${SUDO_USER:-$USER}"
+if ! id "$INSTALL_OWNER" >/dev/null 2>&1; then
+  INSTALL_OWNER="$USER"
+fi
+INSTALL_GROUP="$(id -gn "$INSTALL_OWNER")"
 
 run_root() {
   "${SUDO_CMD[@]}" "$@"
@@ -299,7 +311,9 @@ sync_repository() {
     run_root mkdir -p "$PROJECT_DIR"
   fi
 
-  if [[ ${#SUDO_CMD[@]} -gt 0 ]]; then
+  if [[ "$(id -u)" -eq 0 && "$INSTALL_OWNER" != "root" ]]; then
+    run_root chown -R "$INSTALL_OWNER":"$INSTALL_GROUP" "$PROJECT_DIR"
+  elif [[ ${#SUDO_CMD[@]} -gt 0 ]]; then
     run_root chown -R "$USER":"$(id -gn)" "$PROJECT_DIR"
   fi
 
@@ -335,7 +349,7 @@ prepare_env_file() {
   fi
 
   local db_name db_user db_password database_url
-  local bot_token admin_chat_id backend_base_url
+  local bot_token admin_chat_id backend_base_url db_volume_name
 
   db_name="$(get_env_value "$env_target" "POSTGRES_DB")"
   db_user="$(get_env_value "$env_target" "POSTGRES_USER")"
@@ -343,6 +357,7 @@ prepare_env_file() {
   bot_token="$(get_env_value "$env_target" "TELEGRAM_BOT_TOKEN")"
   admin_chat_id="$(get_env_value "$env_target" "TELEGRAM_ADMIN_CHAT_ID")"
   backend_base_url="$(get_env_value "$env_target" "TELEGRAM_BACKEND_BASE_URL")"
+  db_volume_name="$(get_env_value "$env_target" "DB_VOLUME_NAME")"
 
   if [[ -z "$db_name" ]]; then
     db_name="majormodels"
@@ -396,11 +411,46 @@ prepare_env_file() {
     set_env_value "$env_target" "TELEGRAM_BACKEND_BASE_URL" "$backend_base_url"
   fi
 
+  if [[ -z "$db_volume_name" ]]; then
+    db_volume_name="$DB_VOLUME_NAME_DEFAULT"
+    set_env_value "$env_target" "DB_VOLUME_NAME" "$db_volume_name"
+  fi
+
   if [[ "$ALLOW_PLACEHOLDER_ENV" != "1" ]]; then
     if grep -Eq 'replace_me|change_me_strong_password' "$env_target"; then
       fail "Environment file still contains placeholder values. Fill them interactively or set real values manually."
     fi
   fi
+
+  if [[ "$(id -u)" -eq 0 && "$INSTALL_OWNER" != "root" ]]; then
+    run_root chown "$INSTALL_OWNER":"$INSTALL_GROUP" "$env_target"
+    run_root chmod 600 "$env_target"
+  fi
+}
+
+ensure_database_volume() {
+  local env_target="$1"
+  local db_volume_name
+  db_volume_name="$(get_env_value "$env_target" "DB_VOLUME_NAME")"
+
+  if [[ -z "$db_volume_name" ]]; then
+    db_volume_name="$DB_VOLUME_NAME_DEFAULT"
+  fi
+
+  if ! is_docker_volume_name_safe "$db_volume_name"; then
+    fail "DB_VOLUME_NAME is invalid for Docker volume name: $db_volume_name"
+  fi
+
+  if run_root docker volume inspect "$db_volume_name" >/dev/null 2>&1; then
+    log "Persistent database volume already exists: $db_volume_name"
+    return
+  fi
+
+  log "Creating persistent database volume: $db_volume_name"
+  run_root docker volume create \
+    --label "project=majormodels" \
+    --label "persistent=true" \
+    "$db_volume_name" >/dev/null
 }
 
 run_compose() {
@@ -445,6 +495,7 @@ main() {
   ensure_postgresql
   sync_repository
   prepare_env_file
+  ensure_database_volume "$PROJECT_DIR/$ENV_FILE_PATH"
   deploy_stack
 
   log "Bootstrap finished successfully"

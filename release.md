@@ -1,5 +1,16 @@
 # Release Notes
 
+## v0.8.0
+- Hardened production DB persistence with external Docker volume:
+  - `docker-compose.prod.yml` now uses external volume for PostgreSQL data
+  - volume name is configurable via `DB_VOLUME_NAME` (default `majormodels_postgres_data_prod`)
+- Updated bootstrap installer:
+  - auto-creates persistent DB volume before `docker compose up`
+  - writes default `DB_VOLUME_NAME` into `.env.production` when missing
+- Updated env templates:
+  - added `DB_VOLUME_NAME` to `.env.example` and `.env.production.example`
+- Updated deployment/spec docs to reflect external volume behavior and operational commands.
+
 ## v0.7.0
 - Updated one-command bootstrap installer for same-server DB deployment flow:
   - default `INSTALL_POSTGRESQL=0` (host PostgreSQL install is optional)

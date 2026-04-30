@@ -273,7 +273,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
   private async showMainMenu(ctx: Context): Promise<void> {
     const text = [
-      'Добро пожаловать в каталог Major Models.',
+      'Добро пожаловать в каталог Mazhor Models.',
       '',
       'Здесь можно выбрать товары, добавить их в корзину и отправить заявку.',
       'Выберите действие:',

@@ -1,4 +1,4 @@
-import { OrderStatus } from '.prisma/client';
+import { DeliveryMethod, OrderStatus } from '.prisma/client';
 
 export interface TelegramBackendCategoryDto {
   id: string;
@@ -38,7 +38,15 @@ export interface TelegramBackendOrderResponseDto {
   telegramFullName: string | null;
   comment: string | null;
   status: OrderStatus;
+  subtotal: string;
+  discountTotal: string;
   total: string;
+  promoCode: string | null;
+  promoDiscountPercent: number | null;
+  deliveryMethod: DeliveryMethod | null;
+  pickupPointAddress: string | null;
+  customerPhone: string | null;
+  customerFullName: string | null;
   notificationError: string | null;
   notifiedAt: string | null;
   createdAt: string;
@@ -55,5 +63,10 @@ export interface TelegramBackendCreateOrderDto {
   telegramUsername?: string;
   telegramFullName?: string;
   comment?: string;
+  promoCode?: string;
+  deliveryMethod: DeliveryMethod;
+  pickupPointAddress: string;
+  customerPhone: string;
+  customerFullName: string;
   items: TelegramBackendCreateOrderItemDto[];
 }

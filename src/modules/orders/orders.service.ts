@@ -4,7 +4,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { Product } from '.prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { OrdersRepository } from './repositories/orders.repository';
@@ -15,6 +14,12 @@ interface AggregatedOrderItem {
   productId: string;
   quantity: number;
 }
+
+const PROMO_DISCOUNTS = new Map<string, number>([
+  ['PROMO10', 10],
+  ['PROMO15', 15],
+  ['PROMO20', 20],
+]);
 
 @Injectable()
 export class OrdersService {
@@ -58,12 +63,28 @@ export class OrdersService {
       };
     });
 
+    const promoCode = dto.promoCode?.trim().toUpperCase();
+    const promoDiscountPercent = this.resolvePromoDiscountPercent(promoCode);
+    const discountTotalCents = this.calculateDiscountCents(
+      totalCents,
+      promoDiscountPercent,
+    );
+    const payableTotalCents = totalCents - discountTotalCents;
+
     const created = await this.ordersRepository.createOrder({
       telegramUserId: dto.telegramUserId,
       telegramUsername: dto.telegramUsername?.trim() || undefined,
       telegramFullName: dto.telegramFullName?.trim() || undefined,
       comment: dto.comment?.trim() || undefined,
-      total: centsToDecimalString(totalCents),
+      subtotal: centsToDecimalString(totalCents),
+      discountTotal: centsToDecimalString(discountTotalCents),
+      total: centsToDecimalString(payableTotalCents),
+      promoCode,
+      promoDiscountPercent,
+      deliveryMethod: dto.deliveryMethod,
+      pickupPointAddress: this.requireTrimmed(dto.pickupPointAddress, 'pickupPointAddress'),
+      customerPhone: this.requireTrimmed(dto.customerPhone, 'customerPhone'),
+      customerFullName: this.requireTrimmed(dto.customerFullName, 'customerFullName'),
       items: createItems,
     });
 
@@ -136,5 +157,38 @@ export class OrdersService {
       const bRank = rank.get(b.productId) ?? 0;
       return aRank - bRank;
     });
+  }
+
+  private resolvePromoDiscountPercent(promoCode: string | undefined): number | undefined {
+    if (!promoCode) {
+      return undefined;
+    }
+
+    const discountPercent = PROMO_DISCOUNTS.get(promoCode);
+    if (discountPercent === undefined) {
+      throw new BadRequestException(`Invalid promo code: ${promoCode}`);
+    }
+
+    return discountPercent;
+  }
+
+  private calculateDiscountCents(
+    subtotalCents: bigint,
+    discountPercent: number | undefined,
+  ): bigint {
+    if (!discountPercent) {
+      return 0n;
+    }
+
+    return (subtotalCents * BigInt(discountPercent)) / 100n;
+  }
+
+  private requireTrimmed(value: string, fieldName: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      throw new BadRequestException(`${fieldName} must not be empty`);
+    }
+
+    return trimmed;
   }
 }

@@ -25,11 +25,15 @@ verified at 2026-04-30
 - read API каталога (категории и товары)
 - API заявок (`create` + `get by id`)
 - сохранение заявки и позиций заявки в PostgreSQL
+- промокоды при оформлении заявки: `PROMO10`, `PROMO15`, `PROMO20`
+- выбор способа получения (`SDEC` или `OZON`) и сбор адреса ПВЗ, телефона, ФИО
 - отправка уведомления администратору в Telegram после создания заявки
 - прикладной Telegram bot UX для пользователя:
   - `/start`, `/catalog`, `/cart`
   - inline-кнопки категорий и товаров
   - in-memory корзина на пользователя
+  - кнопка промокода в корзине
+  - пошаговое оформление: способ получения -> адрес ПВЗ -> телефон -> ФИО
   - оформление заявки из бота через backend API `POST /orders`
 - CLI-импорт каталога из Excel price-list файла:
   - команда `npm run catalog:import -- <path-to-xlsx>`
@@ -149,6 +153,11 @@ Request body:
 - `telegramUsername?: string` (max 64)
 - `telegramFullName?: string` (max 120)
 - `comment?: string` (max 1000)
+- `promoCode?: string` (`PROMO10`, `PROMO15`, `PROMO20`)
+- `deliveryMethod: "SDEC" | "OZON"`
+- `pickupPointAddress: string` (max 500)
+- `customerPhone: string` (max 32)
+- `customerFullName: string` (max 120)
 - `items: [{ productId: uuid, quantity: int }]` (1..100 позиций)
 
 Бизнес-правила:
@@ -156,6 +165,9 @@ Request body:
 - если товар не найден, возвращается ошибка валидации/бизнес-ошибка
 - одинаковые `productId` в payload агрегируются по количеству
 - цена и subtotal фиксируются в заявке snapshot-значениями на момент создания
+- при валидном промокоде фиксируются `subtotal`, `discountTotal`, итоговый `total`
+- неизвестный промокод возвращает бизнес-ошибку
+- `total` — итог к оплате после скидки
 - после сохранения выполняется попытка отправки в Telegram админу
 - при ошибке Telegram заявка остается сохраненной (не теряется)
 
@@ -181,11 +193,18 @@ Inline callback-действия:
 
 - выбор категории -> загрузка товаров через `GET /products?categoryId&limit&offset`
 - добавление товара в корзину -> `GET /products/:id` для snapshot карточки
+- ввод промокода из корзины
+- выбор способа получения: `SDEC` или `OZON`
+- ввод адреса ПВЗ
+- ввод телефона
+- ввод ФИО получателя
 - оформление заявки -> `POST /orders`
 
 Правила:
 
 - корзина хранится in-memory по `telegram user id`
+- примененный промокод хранится в in-memory корзине до очистки/оформления
+- в корзине отображаются подытог, скидка и итог к оплате
 - при успешном создании заявки корзина очищается
 - если `TELEGRAM_BOT_TOKEN` не задан/placeholder, polling-бот не стартует и API продолжает работу
 
@@ -256,7 +275,15 @@ Inline callback-действия:
 - `telegramFullName: string?`
 - `comment: string?`
 - `status: enum(OrderStatus)`
-- `total: decimal(12,2)`
+- `subtotal: decimal(12,2)`
+- `discountTotal: decimal(12,2)`
+- `total: decimal(12,2)` — итог к оплате после скидки
+- `promoCode: string?`
+- `promoDiscountPercent: int?`
+- `deliveryMethod: enum(DeliveryMethod)?`
+- `pickupPointAddress: string?`
+- `customerPhone: string?`
+- `customerFullName: string?`
 - `notifiedAt: datetime?`
 - `notificationError: string?`
 - `createdAt: datetime`
@@ -287,6 +314,11 @@ Inline callback-действия:
 
 - `NEW`
 - `NOTIFIED`
+
+### 6.6 DeliveryMethod
+
+- `SDEC`
+- `OZON`
 
 ## 7. Telegram уведомления (реализовано)
 

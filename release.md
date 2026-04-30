@@ -1,5 +1,24 @@
 # Release Notes
 
+## v0.10.0
+- Added promo-code support to order checkout:
+  - `PROMO10` = 10%
+  - `PROMO15` = 15%
+  - `PROMO20` = 20%
+- Added order pricing snapshot fields:
+  - `subtotal`
+  - `discountTotal`
+  - final `total` after discount
+- Added delivery/contact checkout data:
+  - `deliveryMethod` (`SDEC` / `OZON`)
+  - `pickupPointAddress`
+  - `customerPhone`
+  - `customerFullName`
+- Updated Telegram bot checkout UX:
+  - cart has a `Промокод` button
+  - checkout asks delivery method, pickup-point address, phone, and full name before submitting.
+- Added Prisma migration `20260430114900_checkout_promo_delivery`.
+
 ## v0.9.0
 - Fixed production startup resilience:
   - Telegram polling now starts asynchronously and no longer blocks HTTP API startup/health checks.

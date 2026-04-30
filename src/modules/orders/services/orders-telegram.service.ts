@@ -89,6 +89,9 @@ export class OrdersTelegramService {
       : 'Username: -';
 
     const commentLine = order.comment ? `Comment: ${order.comment}` : 'Comment: -';
+    const promoLine = order.promoCode
+      ? `Promo: ${order.promoCode} (${order.promoDiscountPercent ?? 0}%)`
+      : 'Promo: -';
 
     return [
       `New order: ${order.id}`,
@@ -98,9 +101,18 @@ export class OrdersTelegramService {
       userNameLine,
       userHandleLine,
       '',
+      'Customer:',
+      `Full name: ${order.customerFullName ?? '-'}`,
+      `Phone: ${order.customerPhone ?? '-'}`,
+      `Delivery: ${order.deliveryMethod ?? '-'}`,
+      `Pickup point: ${order.pickupPointAddress ?? '-'}`,
+      '',
       'Items:',
       itemsText,
       '',
+      `Subtotal: ${order.subtotal.toString()}`,
+      promoLine,
+      `Discount: ${order.discountTotal.toString()}`,
       `Total: ${order.total.toString()}`,
       commentLine,
     ].join('\n');

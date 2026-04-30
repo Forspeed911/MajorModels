@@ -1,7 +1,11 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DeliveryMethod } from '.prisma/client';
 import { Context, Telegraf } from 'telegraf';
-import { TelegramBackendCategoryDto } from './dto/telegram-backend.dto';
+import {
+  TelegramBackendCategoryDto,
+  TelegramBackendCreateOrderDto,
+} from './dto/telegram-backend.dto';
 import { TelegramBackendRepository } from './repositories/telegram-backend.repository';
 import { centsToDecimalString, decimalStringToCents } from './utils/money';
 
@@ -24,7 +28,16 @@ interface CartItem {
 
 interface UserCart {
   items: Map<string, CartItem>;
+  promoCode?: string;
+  promoDiscountPercent?: number;
+  deliveryMethod?: DeliveryMethod;
+  pickupPointAddress?: string;
+  customerPhone?: string;
+  customerFullName?: string;
+  pendingInput?: CheckoutInputStep;
 }
+
+type CheckoutInputStep = 'promo' | 'pickupPointAddress' | 'customerPhone' | 'customerFullName';
 
 interface TelegramUser {
   id: number;
@@ -38,11 +51,19 @@ const CALLBACK_CATEGORIES = 'menu:categories';
 const CALLBACK_CART = 'menu:cart';
 const CALLBACK_CHECKOUT = 'menu:checkout';
 const CALLBACK_CLEAR_CART = 'cart:clear';
+const CALLBACK_PROMO = 'cart:promo';
+const DELIVERY_CALLBACK_PREFIX = 'delivery:';
 const CATEGORY_PAGE_PATTERN = /^cat:([0-9a-f-]{36}):(\d+)$/i;
 const ADD_PRODUCT_PATTERN = /^add:([0-9a-f-]{36})$/i;
+const DELIVERY_PATTERN = /^delivery:(SDEC|OZON)$/;
 
 const PRODUCTS_PAGE_LIMIT = 10;
 const BUTTON_TEXT_MAX_LENGTH = 60;
+const PROMO_DISCOUNTS = new Map<string, number>([
+  ['PROMO10', 10],
+  ['PROMO15', 15],
+  ['PROMO20', 20],
+]);
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
@@ -99,6 +120,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     bot.command('catalog', (ctx) => this.executeSafely(ctx, () => this.showCategories(ctx)));
     bot.command('cart', (ctx) => this.executeSafely(ctx, () => this.showCart(ctx)));
     bot.on('callback_query', (ctx) => this.executeSafely(ctx, () => this.handleCallback(ctx)));
+    bot.on('text', (ctx) => this.executeSafely(ctx, () => this.handleText(ctx)));
 
     bot.catch((error, ctx) => {
       const message = error instanceof Error ? error.message : 'unknown error';
@@ -154,6 +176,19 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    if (data === CALLBACK_PROMO) {
+      await this.safeAnswerCallback(ctx);
+      await this.promptPromoCode(ctx);
+      return;
+    }
+
+    const deliveryMatch = data.match(DELIVERY_PATTERN);
+    if (deliveryMatch) {
+      await this.safeAnswerCallback(ctx);
+      await this.selectDeliveryMethod(ctx, deliveryMatch[1] as DeliveryMethod);
+      return;
+    }
+
     const categoryMatch = data.match(CATEGORY_PAGE_PATTERN);
     if (categoryMatch) {
       await this.safeAnswerCallback(ctx);
@@ -171,6 +206,52 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.safeAnswerCallback(ctx);
+  }
+
+  private async handleText(ctx: Context): Promise<void> {
+    const user = this.getTelegramUser(ctx);
+    if (!user) {
+      return;
+    }
+
+    const cart = this.carts.get(user.id);
+    if (!cart?.pendingInput) {
+      return;
+    }
+
+    const text = this.getMessageText(ctx).trim();
+    if (!text) {
+      await this.safeReply(ctx, 'Введите значение текстом.');
+      return;
+    }
+
+    if (cart.pendingInput === 'promo') {
+      await this.applyPromoCode(ctx, cart, text);
+      return;
+    }
+
+    if (cart.pendingInput === 'pickupPointAddress') {
+      cart.pickupPointAddress = text;
+      cart.pendingInput = 'customerPhone';
+      await this.safeReply(ctx, 'Введите телефон для связи.');
+      return;
+    }
+
+    if (cart.pendingInput === 'customerPhone') {
+      if (!/^[0-9+()\-\s]+$/.test(text)) {
+        await this.safeReply(ctx, 'Телефон может содержать цифры, пробелы, +, -, ( и ).');
+        return;
+      }
+
+      cart.customerPhone = text;
+      cart.pendingInput = 'customerFullName';
+      await this.safeReply(ctx, 'Введите ФИО получателя.');
+      return;
+    }
+
+    cart.customerFullName = text;
+    cart.pendingInput = undefined;
+    await this.checkoutCart(ctx);
   }
 
   private async showMainMenu(ctx: Context): Promise<void> {
@@ -237,6 +318,47 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     await this.upsertMessage(ctx, this.buildCartText(cart), this.cartKeyboard());
   }
 
+  private async promptPromoCode(ctx: Context): Promise<void> {
+    const user = this.getTelegramUser(ctx);
+    if (!user) {
+      await this.upsertMessage(ctx, 'Не удалось определить Telegram пользователя.');
+      return;
+    }
+
+    const cart = this.carts.get(user.id);
+    if (!cart || cart.items.size === 0) {
+      await this.upsertMessage(ctx, 'Корзина пуста.', this.emptyCartKeyboard());
+      return;
+    }
+
+    cart.pendingInput = 'promo';
+    await this.upsertMessage(
+      ctx,
+      'Введите промокод: PROMO10, PROMO15 или PROMO20.',
+    );
+  }
+
+  private async applyPromoCode(
+    ctx: Context,
+    cart: UserCart,
+    promoCodeInput: string,
+  ): Promise<void> {
+    const promoCode = promoCodeInput.trim().toUpperCase();
+    const discountPercent = PROMO_DISCOUNTS.get(promoCode);
+
+    if (discountPercent === undefined) {
+      await this.safeReply(ctx, 'Промокод не найден. Введите PROMO10, PROMO15 или PROMO20.');
+      return;
+    }
+
+    cart.promoCode = promoCode;
+    cart.promoDiscountPercent = discountPercent;
+    cart.pendingInput = undefined;
+
+    await this.safeReply(ctx, `Промокод ${promoCode} применен: скидка ${discountPercent}%.`);
+    await this.showCart(ctx);
+  }
+
   private async addProductToCart(ctx: Context, productId: string): Promise<void> {
     const user = this.getTelegramUser(ctx);
     if (!user) {
@@ -292,6 +414,33 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    if (!cart.deliveryMethod) {
+      await this.upsertMessage(
+        ctx,
+        'Выберите способ получения заказа.',
+        this.deliveryMethodKeyboard(),
+      );
+      return;
+    }
+
+    if (!cart.pickupPointAddress) {
+      cart.pendingInput = 'pickupPointAddress';
+      await this.upsertMessage(ctx, 'Введите адрес ПВЗ.');
+      return;
+    }
+
+    if (!cart.customerPhone) {
+      cart.pendingInput = 'customerPhone';
+      await this.upsertMessage(ctx, 'Введите телефон для связи.');
+      return;
+    }
+
+    if (!cart.customerFullName) {
+      cart.pendingInput = 'customerFullName';
+      await this.upsertMessage(ctx, 'Введите ФИО получателя.');
+      return;
+    }
+
     const payload = this.buildCreateOrderPayload(user, cart);
     const createdOrder = await this.telegramBackendRepository.createOrder(payload);
 
@@ -300,6 +449,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     const confirmation = [
       'Заявка отправлена.',
       `Номер: ${createdOrder.id}`,
+      `Способ получения: ${createdOrder.deliveryMethod}`,
       `Сумма: ${createdOrder.total}`,
       `Статус уведомления: ${createdOrder.status}`,
     ].join('\n');
@@ -307,13 +457,46 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     await this.upsertMessage(ctx, confirmation, this.mainMenuKeyboard());
   }
 
-  private buildCreateOrderPayload(user: TelegramUser, cart: UserCart) {
+  private async selectDeliveryMethod(
+    ctx: Context,
+    deliveryMethod: DeliveryMethod,
+  ): Promise<void> {
+    const user = this.getTelegramUser(ctx);
+    if (!user) {
+      await this.upsertMessage(ctx, 'Не удалось определить Telegram пользователя.');
+      return;
+    }
+
+    const cart = this.carts.get(user.id);
+    if (!cart || cart.items.size === 0) {
+      await this.upsertMessage(ctx, 'Корзина пуста.', this.emptyCartKeyboard());
+      return;
+    }
+
+    cart.deliveryMethod = deliveryMethod;
+    cart.pickupPointAddress = undefined;
+    cart.customerPhone = undefined;
+    cart.customerFullName = undefined;
+    cart.pendingInput = 'pickupPointAddress';
+
+    await this.upsertMessage(ctx, `Выбран способ получения: ${deliveryMethod}.\nВведите адрес ПВЗ.`);
+  }
+
+  private buildCreateOrderPayload(
+    user: TelegramUser,
+    cart: UserCart,
+  ): TelegramBackendCreateOrderDto {
     const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
 
     return {
       telegramUserId: String(user.id),
       telegramUsername: user.username,
       telegramFullName: fullName.length > 0 ? fullName : undefined,
+      promoCode: cart.promoCode,
+      deliveryMethod: cart.deliveryMethod!,
+      pickupPointAddress: cart.pickupPointAddress!,
+      customerPhone: cart.customerPhone!,
+      customerFullName: cart.customerFullName!,
       items: Array.from(cart.items.values()).map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -400,10 +583,21 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private cartKeyboard(): InlineKeyboardMarkup {
     return {
       inline_keyboard: [
+        [{ text: 'Промокод', callback_data: CALLBACK_PROMO }],
         [{ text: 'Оформить заявку', callback_data: CALLBACK_CHECKOUT }],
         [{ text: 'Очистить корзину', callback_data: CALLBACK_CLEAR_CART }],
         [{ text: 'Категории', callback_data: CALLBACK_CATEGORIES }],
         [{ text: 'В меню', callback_data: CALLBACK_HOME }],
+      ],
+    };
+  }
+
+  private deliveryMethodKeyboard(): InlineKeyboardMarkup {
+    return {
+      inline_keyboard: [
+        [{ text: 'SDEC', callback_data: `${DELIVERY_CALLBACK_PREFIX}SDEC` }],
+        [{ text: 'OZON', callback_data: `${DELIVERY_CALLBACK_PREFIX}OZON` }],
+        [{ text: 'Корзина', callback_data: CALLBACK_CART }],
       ],
     };
   }
@@ -466,8 +660,38 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       );
     });
 
-    lines.push('', `Итого: ${centsToDecimalString(totalCents)}`);
+    const discountCents = this.calculateDiscountCents(
+      totalCents,
+      cart.promoDiscountPercent,
+    );
+    const payableCents = totalCents - discountCents;
+
+    lines.push('', `Подытог: ${centsToDecimalString(totalCents)}`);
+
+    if (cart.promoCode && cart.promoDiscountPercent) {
+      lines.push(
+        `Промокод: ${cart.promoCode} (-${cart.promoDiscountPercent}%)`,
+        `Скидка: ${centsToDecimalString(discountCents)}`,
+      );
+    }
+
+    if (cart.deliveryMethod) {
+      lines.push(`Способ получения: ${cart.deliveryMethod}`);
+    }
+
+    lines.push(`Итого к оплате: ${centsToDecimalString(payableCents)}`);
     return lines.join('\n');
+  }
+
+  private calculateDiscountCents(
+    subtotalCents: bigint,
+    discountPercent: number | undefined,
+  ): bigint {
+    if (!discountPercent) {
+      return 0n;
+    }
+
+    return (subtotalCents * BigInt(discountPercent)) / 100n;
   }
 
   private buildCategoriesText(categories: TelegramBackendCategoryDto[]): string {
@@ -524,6 +748,15 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     }
 
     return callbackQuery.data ?? null;
+  }
+
+  private getMessageText(ctx: Context): string {
+    const message = ctx.message;
+    if (!message || !('text' in message)) {
+      return '';
+    }
+
+    return message.text;
   }
 
   private async safeAnswerCallback(ctx: Context, text?: string): Promise<void> {

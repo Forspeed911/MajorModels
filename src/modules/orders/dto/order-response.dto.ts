@@ -1,4 +1,4 @@
-import { OrderStatus } from '.prisma/client';
+import { DeliveryMethod, OrderStatus } from '.prisma/client';
 import type { Prisma } from '.prisma/client';
 
 export const orderDetailsInclude = {
@@ -30,7 +30,15 @@ export class OrderResponseDto {
   telegramFullName!: string | null;
   comment!: string | null;
   status!: OrderStatus;
+  subtotal!: string;
+  discountTotal!: string;
   total!: string;
+  promoCode!: string | null;
+  promoDiscountPercent!: number | null;
+  deliveryMethod!: DeliveryMethod | null;
+  pickupPointAddress!: string | null;
+  customerPhone!: string | null;
+  customerFullName!: string | null;
   notificationError!: string | null;
   notifiedAt!: string | null;
   createdAt!: string;
@@ -44,7 +52,15 @@ export class OrderResponseDto {
       telegramFullName: model.telegramFullName,
       comment: model.comment,
       status: model.status,
+      subtotal: model.subtotal.toString(),
+      discountTotal: model.discountTotal.toString(),
       total: model.total.toString(),
+      promoCode: model.promoCode,
+      promoDiscountPercent: model.promoDiscountPercent,
+      deliveryMethod: model.deliveryMethod,
+      pickupPointAddress: model.pickupPointAddress,
+      customerPhone: model.customerPhone,
+      customerFullName: model.customerFullName,
       notificationError: model.notificationError,
       notifiedAt: model.notifiedAt ? model.notifiedAt.toISOString() : null,
       createdAt: model.createdAt.toISOString(),

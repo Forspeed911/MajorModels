@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { OrderStatus } from '.prisma/client';
+import { DeliveryMethod, OrderStatus } from '.prisma/client';
 import type { Product } from '.prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { orderDetailsInclude, type OrderDetailsModel } from '../dto/order-response.dto';
@@ -16,7 +16,15 @@ export interface CreateOrderInput {
   telegramUsername?: string;
   telegramFullName?: string;
   comment?: string;
+  subtotal: string;
+  discountTotal: string;
   total: string;
+  promoCode?: string;
+  promoDiscountPercent?: number;
+  deliveryMethod: DeliveryMethod;
+  pickupPointAddress: string;
+  customerPhone: string;
+  customerFullName: string;
   items: CreateOrderItemInput[];
 }
 
@@ -41,7 +49,15 @@ export class OrdersRepository {
         telegramUsername: input.telegramUsername,
         telegramFullName: input.telegramFullName,
         comment: input.comment,
+        subtotal: input.subtotal,
+        discountTotal: input.discountTotal,
         total: input.total,
+        promoCode: input.promoCode,
+        promoDiscountPercent: input.promoDiscountPercent,
+        deliveryMethod: input.deliveryMethod,
+        pickupPointAddress: input.pickupPointAddress,
+        customerPhone: input.customerPhone,
+        customerFullName: input.customerFullName,
         items: {
           create: input.items,
         },

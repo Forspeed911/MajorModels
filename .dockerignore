@@ -11,4 +11,5 @@ pnpm-debug.log*
 .env.*
 coverage
 *.tsbuildinfo
-docs
+docs/*
+!docs/majormodelsprice.xlsx

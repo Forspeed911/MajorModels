@@ -8,6 +8,7 @@
 - Added catalog Excel import command:
   - `npm run catalog:import -- <path-to-xlsx>`
   - `npm run catalog:import -- <path-to-xlsx> --dry-run`
+- Included the default price-list workbook in the production Docker image for container-side imports.
 - Supported the current price-list workbook format:
   - sheet `Продукция`
   - required columns `Категория`, `Артикул`, `Наименование`, `Цена`

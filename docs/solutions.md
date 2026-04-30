@@ -17,6 +17,11 @@
 - Resolution: added `scripts/import-catalog.ts` and `npm run catalog:import` with a dry-run mode; the script reads the simple XLSX XML structure using Node built-ins and writes through the existing Prisma client.
 - Result: the checked-in workbook dry-runs successfully with 189 products and 10 categories; full DB import is idempotent when PostgreSQL is reachable.
 
+### Problem: production import command could not see the default Excel workbook inside the API container
+- Context: `.dockerignore` excluded `docs`, and the runtime Docker image copied only package files, node_modules, Prisma, dist, and scripts. The command `npm run catalog:import -- docs/majormodelsprice.xlsx` is intended to run inside the API container.
+- Resolution: allowed `docs/majormodelsprice.xlsx` into the Docker build context and copied it into the production runtime image.
+- Result: after a successful image rebuild, the container-side import command can read the default workbook path.
+
 ### Problem: importing Excel could introduce package/deployment friction
 - Context: adding a new XLSX npm package would require dependency installation and extra deployment surface for a simple four-column workbook.
 - Resolution: implemented a minimal XLSX reader for the current workbook contract using ZIP central directory parsing and XML extraction with Node built-ins (`fs`, `zlib`).

@@ -273,12 +273,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
   private async showMainMenu(ctx: Context): Promise<void> {
     const text = [
-      'MajorModels Bot',
+      'Добро пожаловать в каталог Major Models.',
       '',
+      'Здесь можно выбрать товары, добавить их в корзину и отправить заявку.',
       'Выберите действие:',
-      '- открыть категории',
-      '- посмотреть корзину',
-      '- отправить заявку',
     ].join('\n');
 
     await this.upsertMessage(ctx, text, this.mainMenuKeyboard());
@@ -769,11 +767,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
   private buildProductCardText(product: TelegramBackendProductDto): string {
     return [
-      'Карточка товара',
+      product.name,
       '',
       `Артикул: ${product.article}`,
-      `Название: ${product.name}`,
-      `Стоимость: ${product.price}`,
+      `Стоимость: ${product.price} ₽`,
     ].join('\n');
   }
 

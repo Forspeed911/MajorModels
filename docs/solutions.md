@@ -7,6 +7,11 @@
 - Resolution: changed Telegram polling startup to run asynchronously after handler registration, logging polling failures without blocking NestJS HTTP startup.
 - Result: API health endpoint can start independently from Telegram polling availability; bot errors remain visible in application logs.
 
+### Problem: placeholder Telegram credentials caused unnecessary network attempts during local order tests
+- Context: local `.env` uses `TELEGRAM_BOT_TOKEN=replace_me` and `TELEGRAM_ADMIN_CHAT_ID=replace_me`. Order creation treated those placeholders as configured credentials and attempted Telegram API delivery before recording notification failure.
+- Resolution: updated order notification config validation to treat empty values and `replace_me` placeholders as missing configuration.
+- Result: local order creation records a deterministic configuration error without waiting on an external Telegram request.
+
 ### Problem: catalog needed repeatable price-list import from Excel without manual SQL
 - Context: the project has `docs/majormodelsprice.xlsx` as the source price list, and operators need to update product data on a server by editing/uploading Excel and running a command.
 - Resolution: added `scripts/import-catalog.ts` and `npm run catalog:import` with a dry-run mode; the script reads the simple XLSX XML structure using Node built-ins and writes through the existing Prisma client.

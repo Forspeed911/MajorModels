@@ -17,7 +17,14 @@ export class OrdersTelegramService {
     const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
     const chatId = this.configService.get<string>('TELEGRAM_ADMIN_CHAT_ID');
 
-    if (!token || !chatId) {
+    if (
+      !token ||
+      !chatId ||
+      token.trim().length === 0 ||
+      chatId.trim().length === 0 ||
+      token === 'replace_me' ||
+      chatId === 'replace_me'
+    ) {
       const error = 'Telegram configuration is missing (TELEGRAM_BOT_TOKEN or TELEGRAM_ADMIN_CHAT_ID).';
       this.logger.error(error);
       return { ok: false, error };

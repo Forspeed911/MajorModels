@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "DeliveryMethod" AS ENUM ('SDEC', 'OZON');
+CREATE TYPE "DeliveryMethod" AS ENUM ('CDEK', 'OZON');
 
 -- AlterTable
 ALTER TABLE "OrderRequest"

@@ -4,7 +4,7 @@
 
 ### Problem: checkout needed promo discounts and fulfillment details before order submission
 - Context: the Telegram cart previously submitted only product items and Telegram profile data, so the admin did not receive promo, delivery method, pickup-point address, phone, or customer full name.
-- Resolution: added static promo codes (`PROMO10`, `PROMO15`, `PROMO20`), persisted subtotal/discount/final total, added `DeliveryMethod` (`SDEC`, `OZON`) and checkout contact fields, and extended the Telegram bot flow to collect promo, delivery, address, phone, and FIO.
+- Resolution: added static promo codes (`PROMO10`, `PROMO15`, `PROMO20`), persisted subtotal/discount/final total, added `DeliveryMethod` (`CDEK`, `OZON`) and checkout contact fields, and extended the Telegram bot flow to collect promo, delivery, address, phone, and FIO.
 - Result: API order creation returns discount and fulfillment fields; local smoke test with `PROMO15` on a 1320 subtotal returned discount `198` and total `1122`.
 
 ### Problem: API container stayed unhealthy when Telegram polling blocked startup

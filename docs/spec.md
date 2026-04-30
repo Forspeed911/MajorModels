@@ -26,7 +26,7 @@ verified at 2026-04-30
 - API заявок (`create` + `get by id`)
 - сохранение заявки и позиций заявки в PostgreSQL
 - промокоды при оформлении заявки: `PROMO10`, `PROMO15`, `PROMO20`
-- выбор способа получения (`SDEC` или `OZON`) и сбор адреса ПВЗ, телефона, ФИО
+- выбор способа получения (`CDEK` или `OZON`) и сбор адреса ПВЗ, телефона, ФИО
 - отправка уведомления администратору в Telegram после создания заявки
 - прикладной Telegram bot UX для пользователя:
   - `/start`, `/catalog`, `/cart`
@@ -154,7 +154,7 @@ Request body:
 - `telegramFullName?: string` (max 120)
 - `comment?: string` (max 1000)
 - `promoCode?: string` (`PROMO10`, `PROMO15`, `PROMO20`)
-- `deliveryMethod: "SDEC" | "OZON"`
+- `deliveryMethod: "CDEK" | "OZON"`
 - `pickupPointAddress: string` (max 500)
 - `customerPhone: string` (max 32)
 - `customerFullName: string` (max 120)
@@ -194,7 +194,7 @@ Inline callback-действия:
 - выбор категории -> загрузка товаров через `GET /products?categoryId&limit&offset`
 - добавление товара в корзину -> `GET /products/:id` для snapshot карточки
 - ввод промокода из корзины
-- выбор способа получения: `SDEC` или `OZON`
+- выбор способа получения: `CDEK` или `OZON`
 - ввод адреса ПВЗ
 - ввод телефона
 - ввод ФИО получателя
@@ -317,7 +317,7 @@ Inline callback-действия:
 
 ### 6.6 DeliveryMethod
 
-- `SDEC`
+- `CDEK`
 - `OZON`
 
 ## 7. Telegram уведомления (реализовано)

@@ -10,7 +10,7 @@
   - `discountTotal`
   - final `total` after discount
 - Added delivery/contact checkout data:
-  - `deliveryMethod` (`SDEC` / `OZON`)
+  - `deliveryMethod` (`CDEK` / `OZON`)
   - `pickupPointAddress`
   - `customerPhone`
   - `customerFullName`

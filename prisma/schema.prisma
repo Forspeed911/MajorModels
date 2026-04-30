@@ -38,7 +38,7 @@ enum OrderStatus {
 }
 
 enum DeliveryMethod {
-  SDEC
+  CDEK
   OZON
 }
 

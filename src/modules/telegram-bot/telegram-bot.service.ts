@@ -55,7 +55,7 @@ const CALLBACK_PROMO = 'cart:promo';
 const DELIVERY_CALLBACK_PREFIX = 'delivery:';
 const CATEGORY_PAGE_PATTERN = /^cat:([0-9a-f-]{36}):(\d+)$/i;
 const ADD_PRODUCT_PATTERN = /^add:([0-9a-f-]{36})$/i;
-const DELIVERY_PATTERN = /^delivery:(SDEC|OZON)$/;
+const DELIVERY_PATTERN = /^delivery:(CDEK|OZON)$/;
 
 const PRODUCTS_PAGE_LIMIT = 10;
 const BUTTON_TEXT_MAX_LENGTH = 60;
@@ -595,7 +595,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private deliveryMethodKeyboard(): InlineKeyboardMarkup {
     return {
       inline_keyboard: [
-        [{ text: 'SDEC', callback_data: `${DELIVERY_CALLBACK_PREFIX}SDEC` }],
+        [{ text: 'CDEK', callback_data: `${DELIVERY_CALLBACK_PREFIX}CDEK` }],
         [{ text: 'OZON', callback_data: `${DELIVERY_CALLBACK_PREFIX}OZON` }],
         [{ text: 'Корзина', callback_data: CALLBACK_CART }],
       ],

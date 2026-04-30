@@ -31,8 +31,8 @@ After this change, a Telegram user can apply a static promo code in the cart, se
   Rationale: existing clients already read `total`; preserving it as payable total keeps the contract intuitive while adding audit fields for discount calculation.
   Date/Author: 2026-04-30 / Codex.
 
-- Decision: Add `DeliveryMethod` enum with values `SDEC` and `OZON`.
-  Rationale: the prompt explicitly requested two choices named `SDEC` and `OZON`. The implementation keeps the spelling as provided.
+- Decision: Add `DeliveryMethod` enum with values `CDEK` and `OZON`.
+  Rationale: the checkout must offer the delivery providers CDEK and OZON; `CDEK` is the corrected spelling for the first provider.
   Date/Author: 2026-04-30 / Codex.
 
 ## Outcomes & Retrospective

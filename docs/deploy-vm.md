@@ -1,6 +1,6 @@
 # VM Deployment Guide (Docker Compose)
 
-verified at 2026-04-29
+verified at 2026-04-30
 
 ## 0. One-command bootstrap option
 
@@ -9,6 +9,11 @@ If you want full bootstrap + deploy in one command, use:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Forspeed911/MajorModels/main/scripts/bootstrap-server.sh | sudo bash
 ```
+
+Installer will ask interactively for:
+- `POSTGRES_PASSWORD`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_ADMIN_CHAT_ID`
 
 Detailed parameters are documented in `docs/deploy-one-command.md`.
 
@@ -44,6 +49,7 @@ Edit `.env.production` and set strong secrets:
 - `DATABASE_URL`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ADMIN_CHAT_ID`
+- `TELEGRAM_BACKEND_BASE_URL` (optional, default `http://127.0.0.1:${PORT}/api/v1`)
 
 ## 4. First deploy
 

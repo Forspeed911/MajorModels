@@ -96,3 +96,7 @@ review documentation via MCP Conext7 for react, Vercel, Next.js and supabase, us
 ## Releases
 
 use `release.md` to short description of changes which i will commit, use rules of numbvers of versions, no commits from you side
+
+
+## new features
+После добавления нового функционала сверяйся с `./docs/spec.md` и при необходимости обновляй его новыми описаниями и функциональностью, для учета контекста

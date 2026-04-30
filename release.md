@@ -1,5 +1,49 @@
 # Release Notes
 
+## v0.7.0
+- Updated one-command bootstrap installer for same-server DB deployment flow:
+  - default `INSTALL_POSTGRESQL=0` (host PostgreSQL install is optional)
+  - automatic `DATABASE_URL` generation targeting compose DB service (`db:5432`)
+- Added interactive secret prompts in `scripts/bootstrap-server.sh` (works in `curl | bash` flow via `/dev/tty`):
+  - `POSTGRES_PASSWORD`
+  - `TELEGRAM_BOT_TOKEN`
+  - `TELEGRAM_ADMIN_CHAT_ID`
+- Added bootstrap control flag:
+  - `PROMPT_FOR_SECRETS` (`1` by default)
+- Updated deployment docs and specification for the new installation behavior.
+
+## v0.6.0
+- Added Telegram user bot UX module (`src/modules/telegram-bot`):
+  - long-polling Telegraf runtime integrated into NestJS lifecycle
+  - commands: `/start`, `/catalog`, `/cart`
+  - inline flow: categories -> products -> add to cart -> checkout
+- Added in-memory per-user cart handling with deterministic subtotal/total formatting in bot responses.
+- Added backend API client layer for bot (`GET /categories`, `GET /products`, `GET /products/:id`, `POST /orders`).
+- Wired `TelegramBotModule` into root `AppModule`.
+- Added optional env var for bot API base URL override:
+  - `TELEGRAM_BACKEND_BASE_URL` in `.env.example` and `.env.production.example`
+- Updated `docs/spec.md` with implemented Telegram bot UX contract and current next-stage requirements.
+
+## v0.5.0
+- Implemented orders workflow API:
+  - `POST /api/v1/orders`
+  - `GET /api/v1/orders/:id`
+- Added new Prisma models and enum:
+  - `OrderRequest`
+  - `OrderItem`
+  - `OrderStatus` (`NEW`, `NOTIFIED`)
+- Added business behavior for order submission:
+  - aggregation of duplicate product positions
+  - snapshot storage of `unitPrice` and `subtotal`
+  - deterministic total calculation and persistence
+- Added Telegram admin notification service for new orders.
+- Added non-fatal Telegram failure handling:
+  - order remains persisted
+  - notification error is stored in DB
+- Added incremental migration:
+  - `prisma/migrations/20260429195900_orders_and_notifications/migration.sql`
+- Updated `docs/spec.md` to reflect implemented order and notification functionality.
+
 ## v0.4.0
 - Added one-command Linux server bootstrap/deploy script:
   - `scripts/bootstrap-server.sh`

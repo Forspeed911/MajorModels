@@ -16,17 +16,58 @@ model Category {
 }
 
 model Product {
-  id         String   @id @default(uuid()) @db.Uuid
-  categoryId String   @db.Uuid
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  article    String   @unique
+  id         String      @id @default(uuid()) @db.Uuid
+  categoryId String      @db.Uuid
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  article    String      @unique
   name       String
-  price      Decimal  @db.Decimal(12, 2)
+  price      Decimal     @db.Decimal(12, 2)
   imageUrl   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
 
   @@index([categoryId])
   @@index([name])
   @@index([article])
+}
+
+enum OrderStatus {
+  NEW
+  NOTIFIED
+}
+
+model OrderRequest {
+  id                String      @id @default(uuid()) @db.Uuid
+  telegramUserId    String
+  telegramUsername  String?
+  telegramFullName  String?
+  comment           String?
+  status            OrderStatus @default(NEW)
+  total             Decimal     @db.Decimal(12, 2)
+  notifiedAt        DateTime?
+  notificationError String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  items             OrderItem[]
+
+  @@index([telegramUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String       @id @default(uuid()) @db.Uuid
+  orderId   String       @db.Uuid
+  productId String       @db.Uuid
+  quantity  Int
+  unitPrice Decimal      @db.Decimal(12, 2)
+  subtotal  Decimal      @db.Decimal(12, 2)
+  createdAt DateTime     @default(now())
+  order     OrderRequest @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productId])
+  @@index([orderId])
+  @@index([productId])
 }

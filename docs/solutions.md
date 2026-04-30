@@ -41,3 +41,23 @@
 - Context: auto-generated env file from template may keep placeholder values (`replace_me`, `change_me_strong_password`), leading to unsafe startup.
 - Resolution: bootstrap script validates env file and stops by default if placeholders are present; explicit override requires `ALLOW_PLACEHOLDER_ENV=1`.
 - Result: safer default deployment behavior with explicit opt-in for test-only placeholder runs.
+
+### Problem: generating incremental Prisma SQL from migrations directory requires shadow database
+- Context: `prisma migrate diff --from-migrations ...` failed in local environment because `--shadow-database-url` is required and no shadow DB is available.
+- Resolution: generated migration SQL by diffing previous committed schema vs current schema (`git show HEAD:prisma/schema.prisma` -> `--from-schema-datamodel`).
+- Result: created incremental migration file for orders/notifications without requiring live DB.
+
+### Problem: order creation must not fail when Telegram delivery fails
+- Context: business flow requires preserving user orders even if Telegram notification is temporarily unavailable.
+- Resolution: implemented non-fatal notification path: order is stored first, Telegram send runs next, and failure is persisted to `notificationError` while order stays in `NEW`.
+- Result: data durability for orders is preserved; failed notifications remain observable and recoverable.
+
+### Problem: Telegram bot typing via `typegram` import failed in local dependency graph
+- Context: initial implementation used `import type { User } from 'typegram'`, but strict TS build failed (`TS2307`) because the package is not directly available for imports in this setup.
+- Resolution: removed external `typegram` dependency usage from module code and introduced local `TelegramUser` interface mapped from `ctx.from`.
+- Result: `npm run lint` and `npm run build` pass with strict TypeScript checks.
+
+### Problem: installer could not safely request Telegram credentials in `curl | bash` mode
+- Context: in piped bootstrap execution, stdin is occupied by script stream, so ordinary `read` prompts are unreliable.
+- Resolution: switched interactive input to `/dev/tty` in `scripts/bootstrap-server.sh` and added guarded secret prompts for `POSTGRES_PASSWORD`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_ADMIN_CHAT_ID`.
+- Result: one-command installer now supports interactive secret entry while keeping same-server Docker DB deployment flow deterministic.

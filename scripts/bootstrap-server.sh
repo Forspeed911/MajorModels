@@ -10,9 +10,10 @@ PROJECT_DIR="${PROJECT_DIR:-/opt/majormodels}"
 ENV_FILE_PATH="${ENV_FILE_PATH:-.env.production}"
 ENV_FILE_URL="${ENV_FILE_URL:-}"
 INSTALL_NODE="${INSTALL_NODE:-1}"
-INSTALL_POSTGRESQL="${INSTALL_POSTGRESQL:-1}"
+INSTALL_POSTGRESQL="${INSTALL_POSTGRESQL:-0}"
 SKIP_DEPLOY="${SKIP_DEPLOY:-0}"
 ALLOW_PLACEHOLDER_ENV="${ALLOW_PLACEHOLDER_ENV:-0}"
+PROMPT_FOR_SECRETS="${PROMPT_FOR_SECRETS:-1}"
 
 APT_UPDATED=0
 PKG_MANAGER=""
@@ -28,6 +29,97 @@ warn() {
 fail() {
   printf '%s ERROR: %s\n' "$LOG_PREFIX" "$*" >&2
   exit 1
+}
+
+is_placeholder_value() {
+  local value="$1"
+  [[ -z "$value" || "$value" == "replace_me" || "$value" == "change_me_strong_password" ]]
+}
+
+get_env_value() {
+  local file="$1"
+  local key="$2"
+  local line
+  line="$(grep -E "^${key}=" "$file" | tail -n 1 || true)"
+  if [[ -z "$line" ]]; then
+    printf '%s' ""
+    return
+  fi
+
+  printf '%s' "${line#*=}"
+}
+
+set_env_value() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk -v key="$key" -v value="$value" '
+    BEGIN { replaced = 0 }
+    $0 ~ ("^" key "=") {
+      if (replaced == 0) {
+        print key "=" value
+        replaced = 1
+      }
+      next
+    }
+    { print }
+    END {
+      if (replaced == 0) {
+        print key "=" value
+      }
+    }
+  ' "$file" > "$tmp_file"
+
+  mv "$tmp_file" "$file"
+}
+
+prompt_secret() {
+  local prompt_text="$1"
+  local value=""
+
+  if [[ ! -r /dev/tty ]]; then
+    fail "Interactive secret input requires /dev/tty. Set values manually in env file or pass ENV_FILE_URL."
+  fi
+
+  while true; do
+    IFS= read -r -s -p "$prompt_text: " value < /dev/tty
+    printf '\n' > /dev/tty
+
+    if [[ -n "$value" ]]; then
+      printf '%s' "$value"
+      return
+    fi
+
+    warn "Value cannot be empty"
+  done
+}
+
+is_url_component_safe() {
+  local value="$1"
+  [[ "$value" =~ ^[A-Za-z0-9._~-]+$ ]]
+}
+
+build_local_database_url() {
+  local db_name="$1"
+  local db_user="$2"
+  local db_password="$3"
+
+  if ! is_url_component_safe "$db_name"; then
+    fail "POSTGRES_DB contains unsupported characters for automatic DATABASE_URL generation."
+  fi
+
+  if ! is_url_component_safe "$db_user"; then
+    fail "POSTGRES_USER contains unsupported characters for automatic DATABASE_URL generation."
+  fi
+
+  if ! is_url_component_safe "$db_password"; then
+    fail "POSTGRES_PASSWORD contains unsupported characters for automatic DATABASE_URL generation."
+  fi
+
+  printf 'postgresql://%s:%s@db:5432/%s?schema=public' "$db_user" "$db_password" "$db_name"
 }
 
 if [[ "$(uname -s)" != "Linux" ]]; then
@@ -242,9 +334,71 @@ prepare_env_file() {
     fi
   fi
 
+  local db_name db_user db_password database_url
+  local bot_token admin_chat_id backend_base_url
+
+  db_name="$(get_env_value "$env_target" "POSTGRES_DB")"
+  db_user="$(get_env_value "$env_target" "POSTGRES_USER")"
+  db_password="$(get_env_value "$env_target" "POSTGRES_PASSWORD")"
+  bot_token="$(get_env_value "$env_target" "TELEGRAM_BOT_TOKEN")"
+  admin_chat_id="$(get_env_value "$env_target" "TELEGRAM_ADMIN_CHAT_ID")"
+  backend_base_url="$(get_env_value "$env_target" "TELEGRAM_BACKEND_BASE_URL")"
+
+  if [[ -z "$db_name" ]]; then
+    db_name="majormodels"
+    set_env_value "$env_target" "POSTGRES_DB" "$db_name"
+  fi
+
+  if [[ -z "$db_user" ]]; then
+    db_user="majormodels"
+    set_env_value "$env_target" "POSTGRES_USER" "$db_user"
+  fi
+
+  if is_placeholder_value "$db_password"; then
+    if [[ "$PROMPT_FOR_SECRETS" == "1" ]]; then
+      log "Requesting local PostgreSQL password for same-server deployment"
+      while true; do
+        db_password="$(prompt_secret "Enter local PostgreSQL password")"
+        if is_url_component_safe "$db_password"; then
+          break
+        fi
+
+        warn "Use only letters, digits, dot, underscore, tilde, or hyphen."
+      done
+      set_env_value "$env_target" "POSTGRES_PASSWORD" "$db_password"
+    fi
+  fi
+
+  if is_placeholder_value "$bot_token"; then
+    if [[ "$PROMPT_FOR_SECRETS" == "1" ]]; then
+      log "Requesting TELEGRAM_BOT_TOKEN"
+      bot_token="$(prompt_secret "Enter TELEGRAM_BOT_TOKEN")"
+      set_env_value "$env_target" "TELEGRAM_BOT_TOKEN" "$bot_token"
+    fi
+  fi
+
+  if is_placeholder_value "$admin_chat_id"; then
+    if [[ "$PROMPT_FOR_SECRETS" == "1" ]]; then
+      log "Requesting TELEGRAM_ADMIN_CHAT_ID"
+      admin_chat_id="$(prompt_secret "Enter TELEGRAM_ADMIN_CHAT_ID")"
+      set_env_value "$env_target" "TELEGRAM_ADMIN_CHAT_ID" "$admin_chat_id"
+    fi
+  fi
+
+  db_name="$(get_env_value "$env_target" "POSTGRES_DB")"
+  db_user="$(get_env_value "$env_target" "POSTGRES_USER")"
+  db_password="$(get_env_value "$env_target" "POSTGRES_PASSWORD")"
+  database_url="$(build_local_database_url "$db_name" "$db_user" "$db_password")"
+  set_env_value "$env_target" "DATABASE_URL" "$database_url"
+
+  if is_placeholder_value "$backend_base_url"; then
+    backend_base_url="http://127.0.0.1:3000/api/v1"
+    set_env_value "$env_target" "TELEGRAM_BACKEND_BASE_URL" "$backend_base_url"
+  fi
+
   if [[ "$ALLOW_PLACEHOLDER_ENV" != "1" ]]; then
     if grep -Eq 'replace_me|change_me_strong_password' "$env_target"; then
-      fail "Environment file contains placeholder values. Set real secrets or use ALLOW_PLACEHOLDER_ENV=1 for test setup."
+      fail "Environment file still contains placeholder values. Fill them interactively or set real values manually."
     fi
   fi
 }

@@ -108,8 +108,11 @@ Workbook preview evidence:
 
 Define `scripts/import-catalog.ts` as an executable TypeScript script. It must expose no public library API, but internally it should have small functions for reading XLSX XML parts, extracting rows, validating headers, normalizing prices, and importing with Prisma.
 
-Add this npm script:
+Add these npm scripts:
 
-    "catalog:import": "ts-node scripts/import-catalog.ts"
+    "catalog:import": "node dist/scripts/import-catalog.js"
+    "catalog:import:dev": "ts-node scripts/import-catalog.ts"
 
 The script depends only on Node built-ins and the existing generated Prisma client import path `.prisma/client`.
+
+Revision note, 2026-04-30: production container testing showed that running `ts-node scripts/import-catalog.ts` inside the built image failed with `ERR_UNKNOWN_FILE_EXTENSION`. The implementation now compiles CLI scripts with `tsconfig.scripts.json` during `npm run build`; `catalog:import` runs `node dist/scripts/import-catalog.js`, and `catalog:import:dev` remains available for local TypeScript execution before a build.

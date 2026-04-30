@@ -195,6 +195,8 @@ Inline callback-действия:
 
 - `npm run catalog:import -- <path-to-xlsx>`
 - `npm run catalog:import -- <path-to-xlsx> --dry-run`
+- для локальной проверки без предварительной сборки можно использовать
+  `npm run catalog:import:dev -- <path-to-xlsx> --dry-run`
 
 Если путь не передан, используется файл по умолчанию:
 

@@ -8,6 +8,8 @@
 - Added catalog Excel import command:
   - `npm run catalog:import -- <path-to-xlsx>`
   - `npm run catalog:import -- <path-to-xlsx> --dry-run`
+  - production command now runs compiled JS from `dist/scripts`
+  - local TypeScript runner is available as `npm run catalog:import:dev`
 - Included the default price-list workbook in the production Docker image for container-side imports.
 - Supported the current price-list workbook format:
   - sheet `Продукция`

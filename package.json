@@ -7,13 +7,14 @@
     "doc": "docs"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.scripts.json",
     "start": "node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
-    "catalog:import": "ts-node scripts/import-catalog.ts",
+    "catalog:import": "node dist/scripts/import-catalog.js",
+    "catalog:import:dev": "ts-node scripts/import-catalog.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json --noEmit",
     "start:prod": "node dist/main.js",
     "migrate:deploy": "prisma migrate deploy"
   },

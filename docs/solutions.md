@@ -22,6 +22,11 @@
 - Resolution: allowed `docs/majormodelsprice.xlsx` into the Docker build context and copied it into the production runtime image.
 - Result: after a successful image rebuild, the container-side import command can read the default workbook path.
 
+### Problem: production import command failed to run TypeScript through ts-node
+- Context: inside the production API container, `npm run catalog:import` failed with `ERR_UNKNOWN_FILE_EXTENSION` for `scripts/import-catalog.ts`.
+- Resolution: added `tsconfig.scripts.json` so build produces `dist/scripts/import-catalog.js`, changed `catalog:import` to run the compiled JS, and kept `catalog:import:dev` for local TypeScript execution.
+- Result: production imports no longer depend on `ts-node` runtime behavior.
+
 ### Problem: importing Excel could introduce package/deployment friction
 - Context: adding a new XLSX npm package would require dependency installation and extra deployment surface for a simple four-column workbook.
 - Resolution: implemented a minimal XLSX reader for the current workbook contract using ZIP central directory parsing and XML extraction with Node built-ins (`fs`, `zlib`).

@@ -31,6 +31,10 @@ verified at 2026-04-30
   - inline-кнопки категорий и товаров
   - in-memory корзина на пользователя
   - оформление заявки из бота через backend API `POST /orders`
+- CLI-импорт каталога из Excel price-list файла:
+  - команда `npm run catalog:import -- <path-to-xlsx>`
+  - dry-run режим `npm run catalog:import -- <path-to-xlsx> --dry-run`
+  - обновление категорий по `name` и товаров по `article`
 - production Docker stack
 - one-command bootstrap/deploy скрипт для Linux VM
   - интерактивный ввод `POSTGRES_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`
@@ -184,6 +188,37 @@ Inline callback-действия:
 - корзина хранится in-memory по `telegram user id`
 - при успешном создании заявки корзина очищается
 - если `TELEGRAM_BOT_TOKEN` не задан/placeholder, polling-бот не стартует и API продолжает работу
+
+### 5.8 Catalog Excel import (реализовано)
+
+Операторская команда:
+
+- `npm run catalog:import -- <path-to-xlsx>`
+- `npm run catalog:import -- <path-to-xlsx> --dry-run`
+
+Если путь не передан, используется файл по умолчанию:
+
+- `docs/majormodelsprice.xlsx`
+
+Поддерживаемый формат workbook:
+
+- лист по умолчанию: `Продукция`
+- строка заголовков содержит обязательные колонки:
+  - `Категория`
+  - `Артикул`
+  - `Наименование`
+  - `Цена`
+- опциональная колонка для изображения:
+  - `Фото`, `Картинка`, `Image`, `ImageUrl`
+
+Правила импорта:
+
+- перед записью в БД файл валидируется на обязательные значения и дубли артикулов
+- категории создаются/переиспользуются по уникальному `name`
+- товары создаются/обновляются по уникальному `article`
+- при обновлении товара меняются категория, название, цена и `imageUrl`
+- отсутствующие в Excel товары не удаляются
+- dry-run читает и валидирует файл без подключения к БД и без записей
 
 ## 6. Модель данных (реализовано)
 

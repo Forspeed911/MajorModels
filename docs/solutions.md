@@ -2,6 +2,16 @@
 
 ## 2026-04-30
 
+### Problem: catalog needed repeatable price-list import from Excel without manual SQL
+- Context: the project has `docs/majormodelsprice.xlsx` as the source price list, and operators need to update product data on a server by editing/uploading Excel and running a command.
+- Resolution: added `scripts/import-catalog.ts` and `npm run catalog:import` with a dry-run mode; the script reads the simple XLSX XML structure using Node built-ins and writes through the existing Prisma client.
+- Result: the checked-in workbook dry-runs successfully with 189 products and 10 categories; full DB import is idempotent when PostgreSQL is reachable.
+
+### Problem: importing Excel could introduce package/deployment friction
+- Context: adding a new XLSX npm package would require dependency installation and extra deployment surface for a simple four-column workbook.
+- Resolution: implemented a minimal XLSX reader for the current workbook contract using ZIP central directory parsing and XML extraction with Node built-ins (`fs`, `zlib`).
+- Result: no new runtime dependency is required for price-list import.
+
 ### Problem: DB data could be lost via `docker compose down -v` on production stack
 - Context: named volume managed directly by Compose can be removed in destructive cleanup flows, which conflicts with strict persistence requirements.
 - Resolution: converted PostgreSQL storage to external Docker volume (`DB_VOLUME_NAME`) in `docker-compose.prod.yml` and added bootstrap step to auto-create that volume before deployment.

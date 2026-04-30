@@ -1,5 +1,18 @@
 # Release Notes
 
+## v0.9.0
+- Added catalog Excel import command:
+  - `npm run catalog:import -- <path-to-xlsx>`
+  - `npm run catalog:import -- <path-to-xlsx> --dry-run`
+- Supported the current price-list workbook format:
+  - sheet `Продукция`
+  - required columns `Категория`, `Артикул`, `Наименование`, `Цена`
+- Import behavior is idempotent:
+  - categories are upserted by `name`
+  - products are upserted by `article`
+  - products missing from Excel are not deleted
+- Added `docs/execplan-catalog-excel-import.md` and updated `docs/spec.md` / `docs/solutions.md`.
+
 ## v0.8.0
 - Hardened production DB persistence with external Docker volume:
   - `docker-compose.prod.yml` now uses external volume for PostgreSQL data

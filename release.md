@@ -16,6 +16,9 @@
   - `customerFullName`
 - Updated Telegram bot checkout UX:
   - cart has a `Промокод` button
+  - promo input/error prompts are concise
+  - product list buttons show only product names
+  - product details open as a separate card with article, name, price, and navigation buttons
   - checkout asks delivery method, pickup-point address, phone, and full name before submitting.
 - Added Prisma migration `20260430114900_checkout_promo_delivery`.
 

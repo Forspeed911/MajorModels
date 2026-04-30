@@ -5,6 +5,7 @@ import { Context, Telegraf } from 'telegraf';
 import {
   TelegramBackendCategoryDto,
   TelegramBackendCreateOrderDto,
+  TelegramBackendProductDto,
 } from './dto/telegram-backend.dto';
 import { TelegramBackendRepository } from './repositories/telegram-backend.repository';
 import { centsToDecimalString, decimalStringToCents } from './utils/money';
@@ -52,8 +53,10 @@ const CALLBACK_CART = 'menu:cart';
 const CALLBACK_CHECKOUT = 'menu:checkout';
 const CALLBACK_CLEAR_CART = 'cart:clear';
 const CALLBACK_PROMO = 'cart:promo';
+const CALLBACK_BACK_TO_PRODUCTS = 'products:back';
 const DELIVERY_CALLBACK_PREFIX = 'delivery:';
 const CATEGORY_PAGE_PATTERN = /^cat:([0-9a-f-]{36}):(\d+)$/i;
+const PRODUCT_CARD_PATTERN = /^prod:([0-9a-f-]{36})$/i;
 const ADD_PRODUCT_PATTERN = /^add:([0-9a-f-]{36})$/i;
 const DELIVERY_PATTERN = /^delivery:(CDEK|OZON)$/;
 
@@ -70,6 +73,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramBotService.name);
   private bot: Telegraf<Context> | null = null;
   private readonly carts = new Map<number, UserCart>();
+  private readonly lastProductPages = new Map<number, { categoryId: string; offset: number }>();
 
   constructor(
     private readonly configService: ConfigService,
@@ -182,6 +186,12 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    if (data === CALLBACK_BACK_TO_PRODUCTS) {
+      await this.safeAnswerCallback(ctx);
+      await this.showLastProductPage(ctx);
+      return;
+    }
+
     const deliveryMatch = data.match(DELIVERY_PATTERN);
     if (deliveryMatch) {
       await this.safeAnswerCallback(ctx);
@@ -195,6 +205,13 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       const categoryId = categoryMatch[1];
       const offset = Number(categoryMatch[2]);
       await this.showCategoryProducts(ctx, categoryId, offset);
+      return;
+    }
+
+    const productCardMatch = data.match(PRODUCT_CARD_PATTERN);
+    if (productCardMatch) {
+      await this.safeAnswerCallback(ctx);
+      await this.showProductCard(ctx, productCardMatch[1]);
       return;
     }
 
@@ -285,6 +302,14 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       offset,
     });
 
+    const user = this.getTelegramUser(ctx);
+    if (user) {
+      this.lastProductPages.set(user.id, {
+        categoryId,
+        offset: productPage.offset,
+      });
+    }
+
     const categoryName = await this.resolveCategoryName(categoryId);
     const text = this.buildProductsText(categoryName, productPage.total, productPage.offset);
     const keyboard = this.categoryProductsKeyboard({
@@ -296,6 +321,28 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     await this.upsertMessage(ctx, text, keyboard);
+  }
+
+  private async showProductCard(ctx: Context, productId: string): Promise<void> {
+    const product = await this.telegramBackendRepository.getProductById(productId);
+
+    await this.upsertMessage(
+      ctx,
+      this.buildProductCardText(product),
+      this.productCardKeyboard(product.id),
+    );
+  }
+
+  private async showLastProductPage(ctx: Context): Promise<void> {
+    const user = this.getTelegramUser(ctx);
+    const lastPage = user ? this.lastProductPages.get(user.id) : undefined;
+
+    if (!lastPage) {
+      await this.showCategories(ctx);
+      return;
+    }
+
+    await this.showCategoryProducts(ctx, lastPage.categoryId, lastPage.offset);
   }
 
   private async showCart(ctx: Context): Promise<void> {
@@ -332,10 +379,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     }
 
     cart.pendingInput = 'promo';
-    await this.upsertMessage(
-      ctx,
-      'Введите промокод: PROMO10, PROMO15 или PROMO20.',
-    );
+    await this.upsertMessage(ctx, 'Введите промокод');
   }
 
   private async applyPromoCode(
@@ -347,7 +391,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     const discountPercent = PROMO_DISCOUNTS.get(promoCode);
 
     if (discountPercent === undefined) {
-      await this.safeReply(ctx, 'Промокод не найден. Введите PROMO10, PROMO15 или PROMO20.');
+      await this.safeReply(ctx, 'Промокод не найден.');
       return;
     }
 
@@ -538,17 +582,13 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     total: number;
     products: Array<{
       id: string;
-      article: string;
       name: string;
-      price: string;
     }>;
   }): InlineKeyboardMarkup {
     const productRows = params.products.map((product) => [
       {
-        text: this.truncateButtonText(
-          `+ ${product.article} | ${product.name} (${product.price})`,
-        ),
-        callback_data: `add:${product.id}`,
+        text: this.truncateButtonText(product.name),
+        callback_data: `prod:${product.id}`,
       },
     ]);
 
@@ -578,6 +618,16 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     ];
 
     return { inline_keyboard: keyboardRows };
+  }
+
+  private productCardKeyboard(productId: string): InlineKeyboardMarkup {
+    return {
+      inline_keyboard: [
+        [{ text: 'В корзину', callback_data: `add:${productId}` }],
+        [{ text: 'Назад', callback_data: CALLBACK_BACK_TO_PRODUCTS }],
+        [{ text: 'В меню', callback_data: CALLBACK_HOME }],
+      ],
+    };
   }
 
   private cartKeyboard(): InlineKeyboardMarkup {
@@ -713,7 +763,17 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       `Товаров всего: ${total}`,
       `Смещение: ${offset}`,
       '',
-      'Нажмите на кнопку товара, чтобы добавить его в корзину.',
+      'Нажмите на товар, чтобы открыть карточку.',
+    ].join('\n');
+  }
+
+  private buildProductCardText(product: TelegramBackendProductDto): string {
+    return [
+      'Карточка товара',
+      '',
+      `Артикул: ${product.article}`,
+      `Название: ${product.name}`,
+      `Стоимость: ${product.price}`,
     ].join('\n');
   }
 

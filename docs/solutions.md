@@ -7,6 +7,11 @@
 - Resolution: added static promo codes (`PROMO10`, `PROMO15`, `PROMO20`), persisted subtotal/discount/final total, added `DeliveryMethod` (`CDEK`, `OZON`) and checkout contact fields, and extended the Telegram bot flow to collect promo, delivery, address, phone, and FIO.
 - Result: API order creation returns discount and fulfillment fields; local smoke test with `PROMO15` on a 1320 subtotal returned discount `198` and total `1122`.
 
+### Problem: Telegram product list was too dense for browsing
+- Context: category product buttons included article and price, which made long product names harder to scan and skipped a dedicated product-card step.
+- Resolution: changed category product buttons to show only product names; selecting a product opens a card with article, name, price, and buttons `В корзину`, `Назад`, `В меню`.
+- Result: browsing is cleaner while product details remain available before adding to cart.
+
 ### Problem: API container stayed unhealthy when Telegram polling blocked startup
 - Context: production logs showed NestJS registered routes but never opened port `3000`; health checks returned `Connection refused`. The Telegram bot startup was awaited in `onModuleInit`, so a slow or blocked `bot.launch()` could prevent the HTTP API from listening.
 - Resolution: changed Telegram polling startup to run asynchronously after handler registration, logging polling failures without blocking NestJS HTTP startup.

@@ -62,18 +62,25 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    this.bot = new Telegraf<Context>(token);
-    this.registerHandlers(this.bot);
+    const bot = new Telegraf<Context>(token);
+    this.bot = bot;
+    this.registerHandlers(bot);
 
+    void this.launchBot(bot);
+  }
+
+  private async launchBot(bot: Telegraf<Context>): Promise<void> {
     try {
-      await this.bot.launch({
+      await bot.launch({
         allowedUpdates: ['message', 'callback_query'],
       });
       this.logger.log('Telegram bot polling is started');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
       this.logger.error(`Failed to start Telegram bot polling: ${message}`);
-      this.bot = null;
+      if (this.bot === bot) {
+        this.bot = null;
+      }
     }
   }
 

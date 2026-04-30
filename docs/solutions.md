@@ -2,6 +2,11 @@
 
 ## 2026-04-30
 
+### Problem: API container stayed unhealthy when Telegram polling blocked startup
+- Context: production logs showed NestJS registered routes but never opened port `3000`; health checks returned `Connection refused`. The Telegram bot startup was awaited in `onModuleInit`, so a slow or blocked `bot.launch()` could prevent the HTTP API from listening.
+- Resolution: changed Telegram polling startup to run asynchronously after handler registration, logging polling failures without blocking NestJS HTTP startup.
+- Result: API health endpoint can start independently from Telegram polling availability; bot errors remain visible in application logs.
+
 ### Problem: catalog needed repeatable price-list import from Excel without manual SQL
 - Context: the project has `docs/majormodelsprice.xlsx` as the source price list, and operators need to update product data on a server by editing/uploading Excel and running a command.
 - Resolution: added `scripts/import-catalog.ts` and `npm run catalog:import` with a dry-run mode; the script reads the simple XLSX XML structure using Node built-ins and writes through the existing Prisma client.

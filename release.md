@@ -1,6 +1,8 @@
 # Release Notes
 
 ## v0.9.0
+- Fixed production startup resilience:
+  - Telegram polling now starts asynchronously and no longer blocks HTTP API startup/health checks.
 - Added catalog Excel import command:
   - `npm run catalog:import -- <path-to-xlsx>`
   - `npm run catalog:import -- <path-to-xlsx> --dry-run`

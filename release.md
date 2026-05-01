@@ -24,7 +24,7 @@
 - Documented low-disk recovery steps for Docker updates, pruned dev dependencies from the production image after build, and kept Prisma CLI as a runtime dependency for migrations.
 - Added consistent emoji labels to Telegram bot action/navigation buttons while keeping product-name buttons plain.
 - Replaced technical Telegram catalog offset text with user-facing page text.
-- Added Telegram checkout validation for recipient full name so one-word names prompt for correction instead of breaking the checkout flow.
+- Added Telegram checkout validation for recipient full name so one-word names prompt for correction, and final submission errors keep the user in checkout instead of falling into the generic command error.
 
 ## v0.10.0
 - Added promo-code support to order checkout:

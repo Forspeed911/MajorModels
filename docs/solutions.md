@@ -4,8 +4,8 @@
 
 ### Problem: one-word recipient full name broke Telegram checkout flow
 - Context: during Telegram checkout, after entering a one-word recipient name at the FIO step, the bot returned the generic error `Не удалось обработать команду. Попробуйте ещё раз.` and the user could not clearly continue checkout from the cart.
-- Resolution: validate `customerFullName` in the bot before order submission. The value must contain at least two words, and invalid input keeps the user on the FIO step with a clear correction prompt. If final order submission still fails, the bot restores the FIO pending step instead of silently losing checkout progress.
-- Result: users are told to enter a full recipient name and can continue the same checkout flow without restarting the cart.
+- Resolution: validate `customerFullName` in the bot before order submission. The value must contain at least two words, and invalid input keeps the user on the FIO step with a clear correction prompt. If final order submission still fails, the bot restores the FIO pending step, logs the concrete backend error, and replies with a checkout-specific message instead of rethrowing into the generic handler.
+- Result: users are told to enter a full recipient name and can continue the same checkout flow without restarting the cart; unexpected backend submission errors no longer replace the flow with the generic command error.
 
 ### Problem: product cards need article-specific photos without bloating git or Docker images
 - Context: product photos will be uploaded as folders named by article, with one or more files inside each folder. Storing binaries in git, Docker images, or PostgreSQL would make deploys and backups heavier than needed.

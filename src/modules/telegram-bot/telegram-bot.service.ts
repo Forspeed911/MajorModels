@@ -307,8 +307,17 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.checkoutCart(ctx);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.error(`Telegram checkout submission failed: ${message}`);
       cart.pendingInput = 'customerFullName';
-      throw error;
+      await this.safeReply(
+        ctx,
+        [
+          'Не удалось отправить заявку.',
+          'Данные корзины сохранены.',
+          'Введите ФИО получателя ещё раз или откройте корзину.',
+        ].join('\n'),
+      );
     }
   }
 

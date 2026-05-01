@@ -23,6 +23,8 @@
 - Added `manual.md` with operator instructions for deployment, price-list updates, and product photo updates.
 - Documented low-disk recovery steps for Docker updates, pruned dev dependencies from the production image after build, and kept Prisma CLI as a runtime dependency for migrations.
 - Added consistent emoji labels to Telegram bot action/navigation buttons while keeping product-name buttons plain.
+- Replaced technical Telegram catalog offset text with user-facing page text.
+- Added Telegram checkout validation for recipient full name so one-word names prompt for correction instead of breaking the checkout flow.
 
 ## v0.10.0
 - Added promo-code support to order checkout:

@@ -63,6 +63,7 @@ const DELIVERY_PATTERN = /^delivery:(CDEK|OZON)$/;
 
 const PRODUCTS_PAGE_LIMIT = 10;
 const BUTTON_TEXT_MAX_LENGTH = 60;
+const CUSTOMER_FULL_NAME_MAX_LENGTH = 120;
 const PROMO_DISCOUNTS = new Map<string, number>([
   ['PROMO10', 10],
   ['PROMO15', 15],
@@ -291,9 +292,24 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    cart.customerFullName = text;
+    const customerFullName = this.normalizeCustomerFullName(text);
+    if (!this.isValidCustomerFullName(customerFullName)) {
+      await this.safeReply(
+        ctx,
+        'Введите полное ФИО получателя: минимум фамилию и имя, например: Иванов Иван.',
+      );
+      return;
+    }
+
+    cart.customerFullName = customerFullName;
     cart.pendingInput = undefined;
-    await this.checkoutCart(ctx);
+
+    try {
+      await this.checkoutCart(ctx);
+    } catch (error) {
+      cart.pendingInput = 'customerFullName';
+      throw error;
+    }
   }
 
   private async showMainMenu(ctx: Context): Promise<void> {
@@ -334,7 +350,12 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     }
 
     const categoryName = await this.resolveCategoryName(categoryId);
-    const text = this.buildProductsText(categoryName, productPage.total, productPage.offset);
+    const text = this.buildProductsText(
+      categoryName,
+      productPage.total,
+      productPage.offset,
+      productPage.limit,
+    );
     const keyboard = this.categoryProductsKeyboard({
       categoryId,
       offset: productPage.offset,
@@ -811,6 +832,18 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     return (subtotalCents * BigInt(discountPercent)) / 100n;
   }
 
+  private normalizeCustomerFullName(value: string): string {
+    return value.trim().replace(/\s+/g, ' ');
+  }
+
+  private isValidCustomerFullName(value: string): boolean {
+    if (value.length === 0 || value.length > CUSTOMER_FULL_NAME_MAX_LENGTH) {
+      return false;
+    }
+
+    return value.split(' ').filter((part) => part.length > 1).length >= 2;
+  }
+
   private buildCategoriesText(categories: TelegramBackendCategoryDto[]): string {
     if (categories.length === 0) {
       return 'Категорий пока нет.';
@@ -824,14 +857,25 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     return lines.join('\n');
   }
 
-  private buildProductsText(categoryName: string, total: number, offset: number): string {
-    return [
+  private buildProductsText(
+    categoryName: string,
+    total: number,
+    offset: number,
+    limit: number,
+  ): string {
+    const lines = [
       `Категория: ${categoryName}`,
       `Товаров всего: ${total}`,
-      `Смещение: ${offset}`,
-      '',
-      'Нажмите на товар, чтобы открыть карточку.',
-    ].join('\n');
+    ];
+
+    if (total > limit) {
+      const currentPage = Math.floor(offset / limit) + 1;
+      const totalPages = Math.ceil(total / limit);
+      lines.push(`Страница: ${currentPage} из ${totalPages}`);
+    }
+
+    lines.push('', 'Нажмите на товар, чтобы открыть карточку.');
+    return lines.join('\n');
   }
 
   private buildProductCardText(

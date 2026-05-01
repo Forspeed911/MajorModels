@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '.prisma/client';
-import type { Category, Product } from '.prisma/client';
+import type { Category } from '.prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  productDetailsInclude,
+  type ProductDetailsModel,
+} from '../dto/product-response.dto';
 
 export interface FindProductsParams {
   categoryId?: string;
@@ -24,7 +28,7 @@ export class CatalogRepository {
 
   async findProducts(
     params: FindProductsParams,
-  ): Promise<{ items: Product[]; total: number }> {
+  ): Promise<{ items: ProductDetailsModel[]; total: number }> {
     const where: Prisma.ProductWhereInput = {
       ...(params.categoryId ? { categoryId: params.categoryId } : {}),
       ...(params.search
@@ -50,6 +54,7 @@ export class CatalogRepository {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.product.findMany({
         where,
+        include: productDetailsInclude,
         orderBy: [{ name: 'asc' }, { article: 'asc' }],
         take: params.limit,
         skip: params.offset,
@@ -60,9 +65,10 @@ export class CatalogRepository {
     return { items, total };
   }
 
-  findProductById(id: string): Promise<Product | null> {
+  findProductById(id: string): Promise<ProductDetailsModel | null> {
     return this.prisma.product.findUnique({
       where: { id },
+      include: productDetailsInclude,
     });
   }
 }

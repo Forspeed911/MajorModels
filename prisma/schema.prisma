@@ -26,10 +26,24 @@ model Product {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   orderItems OrderItem[]
+  images     ProductImage[]
 
   @@index([categoryId])
   @@index([name])
   @@index([article])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @db.Uuid
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, url])
+  @@index([productId])
+  @@index([sortOrder])
 }
 
 enum OrderStatus {

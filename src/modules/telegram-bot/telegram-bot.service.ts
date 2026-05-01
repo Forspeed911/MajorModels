@@ -57,6 +57,7 @@ const CALLBACK_BACK_TO_PRODUCTS = 'products:back';
 const DELIVERY_CALLBACK_PREFIX = 'delivery:';
 const CATEGORY_PAGE_PATTERN = /^cat:([0-9a-f-]{36}):(\d+)$/i;
 const PRODUCT_CARD_PATTERN = /^prod:([0-9a-f-]{36})$/i;
+const PRODUCT_PHOTO_PATTERN = /^photo:([0-9a-f-]{36}):(\d+)$/i;
 const ADD_PRODUCT_PATTERN = /^add:([0-9a-f-]{36})$/i;
 const DELIVERY_PATTERN = /^delivery:(CDEK|OZON)$/;
 
@@ -215,6 +216,13 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const productPhotoMatch = data.match(PRODUCT_PHOTO_PATTERN);
+    if (productPhotoMatch) {
+      await this.safeAnswerCallback(ctx);
+      await this.showProductCard(ctx, productPhotoMatch[1], Number(productPhotoMatch[2]));
+      return;
+    }
+
     const addMatch = data.match(ADD_PRODUCT_PATTERN);
     if (addMatch) {
       const productId = addMatch[1];
@@ -321,14 +329,33 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     await this.upsertMessage(ctx, text, keyboard);
   }
 
-  private async showProductCard(ctx: Context, productId: string): Promise<void> {
+  private async showProductCard(
+    ctx: Context,
+    productId: string,
+    imageIndex = 0,
+  ): Promise<void> {
     const product = await this.telegramBackendRepository.getProductById(productId);
+    const imageUrls = this.resolveProductImageUrls(product);
+    const safeImageIndex = this.clampImageIndex(imageIndex, imageUrls.length);
+    const text = this.buildProductCardText(product, safeImageIndex);
+    const keyboard = this.productCardKeyboard(product, safeImageIndex);
 
-    await this.upsertMessage(
-      ctx,
-      this.buildProductCardText(product),
-      this.productCardKeyboard(product.id),
-    );
+    if (imageUrls.length === 0) {
+      await this.upsertMessage(ctx, text, keyboard);
+      return;
+    }
+
+    try {
+      const image = await this.telegramBackendRepository.getProductImage(
+        imageUrls[safeImageIndex],
+      );
+
+      await this.replaceWithPhoto(ctx, image, text, keyboard);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.warn(`Failed to send product image for ${product.article}: ${message}`);
+      await this.upsertMessage(ctx, text, keyboard);
+    }
   }
 
   private async showLastProductPage(ctx: Context): Promise<void> {
@@ -618,10 +645,35 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     return { inline_keyboard: keyboardRows };
   }
 
-  private productCardKeyboard(productId: string): InlineKeyboardMarkup {
+  private productCardKeyboard(
+    product: TelegramBackendProductDto,
+    imageIndex: number,
+  ): InlineKeyboardMarkup {
+    const imageUrls = this.resolveProductImageUrls(product);
+    const photoNavigationRow: InlineKeyboardButton[] = [];
+
+    if (imageUrls.length > 1) {
+      const previousIndex =
+        imageIndex === 0 ? imageUrls.length - 1 : imageIndex - 1;
+      const nextIndex =
+        imageIndex + 1 >= imageUrls.length ? 0 : imageIndex + 1;
+
+      photoNavigationRow.push(
+        {
+          text: '< Фото',
+          callback_data: `photo:${product.id}:${previousIndex}`,
+        },
+        {
+          text: 'Фото >',
+          callback_data: `photo:${product.id}:${nextIndex}`,
+        },
+      );
+    }
+
     return {
       inline_keyboard: [
-        [{ text: 'В корзину', callback_data: `add:${productId}` }],
+        ...(photoNavigationRow.length > 0 ? [photoNavigationRow] : []),
+        [{ text: 'В корзину', callback_data: `add:${product.id}` }],
         [{ text: 'Назад', callback_data: CALLBACK_BACK_TO_PRODUCTS }],
         [{ text: 'В меню', callback_data: CALLBACK_HOME }],
       ],
@@ -765,13 +817,23 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     ].join('\n');
   }
 
-  private buildProductCardText(product: TelegramBackendProductDto): string {
-    return [
+  private buildProductCardText(
+    product: TelegramBackendProductDto,
+    imageIndex: number,
+  ): string {
+    const lines = [
       product.name,
       '',
       `Артикул: ${product.article}`,
       `Стоимость: ${product.price} ₽`,
-    ].join('\n');
+    ];
+
+    const imageCount = this.resolveProductImageUrls(product).length;
+    if (imageCount > 1) {
+      lines.push(`Фото: ${imageIndex + 1} из ${imageCount}`);
+    }
+
+    return lines.join('\n');
   }
 
   private async resolveCategoryName(categoryId: string): Promise<string> {
@@ -796,6 +858,45 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     }
 
     await ctx.reply(text, options);
+  }
+
+  private async replaceWithPhoto(
+    ctx: Context,
+    image: Buffer,
+    caption: string,
+    keyboard: InlineKeyboardMarkup,
+  ): Promise<void> {
+    if (ctx.callbackQuery) {
+      try {
+        await ctx.deleteMessage();
+      } catch {
+        // Fallback to sending a new card if Telegram cannot delete the old message.
+      }
+    }
+
+    await ctx.replyWithPhoto(
+      { source: image },
+      {
+        caption,
+        reply_markup: keyboard,
+      },
+    );
+  }
+
+  private resolveProductImageUrls(product: TelegramBackendProductDto): string[] {
+    if (product.images.length > 0) {
+      return product.images;
+    }
+
+    return product.imageUrl ? [product.imageUrl] : [];
+  }
+
+  private clampImageIndex(imageIndex: number, imageCount: number): number {
+    if (imageCount < 1 || !Number.isInteger(imageIndex) || imageIndex < 0) {
+      return 0;
+    }
+
+    return Math.min(imageIndex, imageCount - 1);
   }
 
   private getCallbackData(ctx: Context): string | null {

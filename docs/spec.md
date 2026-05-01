@@ -1,6 +1,6 @@
 # Telegram Catalog Bot — Specification
 
-verified at 2026-04-30
+verified at 2026-05-01
 
 ## 1. Цель проекта
 
@@ -31,6 +31,7 @@ verified at 2026-04-30
 - прикладной Telegram bot UX для пользователя:
   - `/start`, `/catalog`, `/cart`
   - inline-кнопки категорий и товаров
+  - карточка товара с фотографией, если она импортирована
   - in-memory корзина на пользователя
   - кнопка промокода в корзине
   - пошаговое оформление: способ получения -> адрес ПВЗ -> телефон -> ФИО
@@ -39,6 +40,10 @@ verified at 2026-04-30
   - команда `npm run catalog:import -- <path-to-xlsx>`
   - dry-run режим `npm run catalog:import -- <path-to-xlsx> --dry-run`
   - обновление категорий по `name` и товаров по `article`
+- CLI-импорт фотографий товаров из article-папок:
+  - команда `npm run product-images:import -- <path-to-products-images>`
+  - dry-run режим `npm run product-images:import -- <path-to-products-images> --dry-run`
+  - внешний media root для production: `/opt/majormodels-media`
 - production Docker stack
 - one-command bootstrap/deploy скрипт для Linux VM
   - интерактивный ввод `POSTGRES_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`
@@ -136,12 +141,23 @@ Query-параметры:
 - `name: string`
 - `price: string` (decimal как строка)
 - `imageUrl: string | null`
+- `images: string[]`
 
 ### 5.4 Product details
 
 - `GET /products/:id`
 - `id` валидируется как UUID v4
 - `404`, если товар не найден
+
+### 5.4.1 Product media
+
+- `GET /media/products/:article/:filename`
+- отдаёт файл из `MEDIA_ROOT/products/:article/:filename`
+- `MEDIA_ROOT` по умолчанию:
+  - local: `media`
+  - production Docker: `/app/media`
+- production host directory монтируется как `/opt/majormodels-media:/app/media:ro`
+- поддерживаемые расширения: `.jpg`, `.jpeg`, `.png`, `.webp`
 
 ### 5.5 Create order
 
@@ -206,7 +222,9 @@ Inline callback-действия:
 - корзина хранится in-memory по `telegram user id`
 - примененный промокод хранится в in-memory корзине до очистки/оформления
 - список товаров в категории показывает только названия товаров
-- карточка товара показывает артикул, название и стоимость, с кнопками `В корзину`, `Назад`, `В меню`
+- фотографии показываются только в карточке товара
+- карточка товара показывает фотографию, артикул, название и стоимость, с кнопками `В корзину`, `Назад`, `В меню`
+- если у товара несколько фотографий, карточка товара показывает навигацию по фотографиям
 - в корзине отображаются подытог, скидка и итог к оплате
 - при успешном создании заявки корзина очищается
 - если `TELEGRAM_BOT_TOKEN` не задан/placeholder, polling-бот не стартует и API продолжает работу
@@ -263,6 +281,7 @@ Inline callback-действия:
 - `imageUrl: string?`
 - `createdAt: datetime`
 - `updatedAt: datetime`
+- `images: ProductImage[]`
 
 Индексы:
 
@@ -270,7 +289,20 @@ Inline callback-действия:
 - `name`
 - `article`
 
-### 6.3 OrderRequest
+### 6.3 ProductImage
+
+- `id: uuid` (PK)
+- `productId: uuid` (FK -> Product.id, onDelete Cascade)
+- `url: string`
+- `sortOrder: int`
+- `createdAt: datetime`
+
+Ограничения/индексы:
+
+- `unique(productId, url)`
+- индексы по `productId`, `sortOrder`
+
+### 6.4 OrderRequest
 
 - `id: uuid` (PK)
 - `telegramUserId: string`
@@ -298,7 +330,7 @@ Inline callback-действия:
 - `status`
 - `createdAt`
 
-### 6.4 OrderItem
+### 6.5 OrderItem
 
 - `id: uuid` (PK)
 - `orderId: uuid` (FK -> OrderRequest.id, onDelete Cascade)
@@ -313,12 +345,12 @@ Inline callback-действия:
 - `unique(orderId, productId)`
 - индексы по `orderId`, `productId`
 
-### 6.5 OrderStatus
+### 6.6 OrderStatus
 
 - `NEW`
 - `NOTIFIED`
 
-### 6.6 DeliveryMethod
+### 6.7 DeliveryMethod
 
 - `CDEK`
 - `OZON`

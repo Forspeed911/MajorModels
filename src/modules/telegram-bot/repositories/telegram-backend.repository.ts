@@ -34,6 +34,16 @@ export class TelegramBackendRepository {
     return this.requestJson(`/products/${productId}`);
   }
 
+  async getProductImage(imageUrl: string): Promise<Buffer> {
+    const response = await fetch(this.resolveUrl(imageUrl));
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(`Backend media HTTP ${response.status}: ${message}`);
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   createOrder(payload: TelegramBackendCreateOrderDto): Promise<TelegramBackendOrderResponseDto> {
     return this.requestJson('/orders', {
       method: 'POST',
@@ -45,13 +55,25 @@ export class TelegramBackendRepository {
   }
 
   private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`${this.resolveBaseUrl()}${path}`, init);
+    const response = await fetch(this.resolveUrl(path), init);
     if (!response.ok) {
       const message = await response.text();
       throw new Error(`Backend API HTTP ${response.status}: ${message}`);
     }
 
     return (await response.json()) as T;
+  }
+
+  private resolveUrl(pathOrUrl: string): string {
+    if (/^https?:\/\//i.test(pathOrUrl)) {
+      return pathOrUrl;
+    }
+
+    const normalizedPath = pathOrUrl.startsWith('/api/v1/')
+      ? pathOrUrl.slice('/api/v1'.length)
+      : pathOrUrl;
+
+    return `${this.resolveBaseUrl()}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
   }
 
   private resolveBaseUrl(): string {

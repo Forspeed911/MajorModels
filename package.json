@@ -12,6 +12,8 @@
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "catalog:import": "node dist/scripts/import-catalog.js",
     "catalog:import:dev": "ts-node scripts/import-catalog.ts",
+    "product-images:import": "node dist/scripts/import-product-images.js",
+    "product-images:import:dev": "ts-node scripts/import-product-images.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json --noEmit",

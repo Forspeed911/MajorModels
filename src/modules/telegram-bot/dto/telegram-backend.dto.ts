@@ -12,6 +12,7 @@ export interface TelegramBackendProductDto {
   name: string;
   price: string;
   imageUrl: string | null;
+  images: string[];
 }
 
 export interface TelegramBackendProductListResponseDto {

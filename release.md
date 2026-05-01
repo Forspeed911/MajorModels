@@ -1,5 +1,27 @@
 # Release Notes
 
+## v0.11.0
+- Added product image storage metadata:
+  - new Prisma model `ProductImage`
+  - migration `20260430135600_product_images`
+  - product responses now include `images: string[]`
+  - `imageUrl` remains as the first image URL for compatibility.
+- Added media serving endpoint:
+  - `GET /api/v1/media/products/:article/:filename`
+  - supports `.jpg`, `.jpeg`, `.png`, `.webp`
+- Added product image import command:
+  - `npm run product-images:import -- <path-to-products-images>`
+  - `npm run product-images:import -- <path-to-products-images> --dry-run`
+  - local TypeScript runner: `npm run product-images:import:dev`
+- Added production media mount:
+  - host `/opt/majormodels-media`
+  - container `/app/media` read-only
+- Updated Telegram product cards:
+  - product lists stay text-only
+  - cards upload the product photo into Telegram
+  - multiple photos can be browsed inside the card.
+- Added `manual.md` with operator instructions for deployment, price-list updates, and product photo updates.
+
 ## v0.10.0
 - Added promo-code support to order checkout:
   - `PROMO10` = 10%

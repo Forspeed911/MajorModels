@@ -2,6 +2,22 @@
 
 ## 2026-04-30
 
+### Problem: product cards need article-specific photos without bloating git or Docker images
+- Context: product photos will be uploaded as folders named by article, with one or more files inside each folder. Storing binaries in git, Docker images, or PostgreSQL would make deploys and backups heavier than needed.
+- Resolution: added `ProductImage` metadata table, product image import command, safe media file endpoint, and a production read-only mount from `/opt/majormodels-media` to `/app/media`.
+- Result: product API responses now include `images`; a local test import for article `ММ309` produced two image URLs and `/api/v1/media/products/%D0%9C%D0%9C309/1.jpg` returned HTTP 200.
+- Note: if an article folder exists but no supported images remain in it, the import clears that product's image metadata so removed files do not leave stale API URLs.
+
+### Problem: Telegram must show photos only in product cards, while media URLs may be private
+- Context: category product lists should stay compact, and Telegram cloud servers cannot fetch private/internal URLs such as `http://127.0.0.1:3000/api/v1/media/...`.
+- Resolution: product list buttons now open a card; the bot fetches image bytes from the backend media endpoint and uploads them to Telegram with the card caption. Multiple images are browsed with previous/next buttons inside the card.
+- Result: product photos are visible only after opening a product card, and the design works even when backend media URLs are not publicly reachable.
+
+### Problem: operators need one place for deployment, price-list, and photo update instructions
+- Context: deployment, Excel import, and product photo sync were documented across multiple files and implementation notes.
+- Resolution: added root `manual.md` with production paths, deploy commands, price-list update workflow, photo directory rules, and sync commands.
+- Result: routine operations can be performed from one document without reading ExecPlans or source files.
+
 ### Problem: checkout needed promo discounts and fulfillment details before order submission
 - Context: the Telegram cart previously submitted only product items and Telegram profile data, so the admin did not receive promo, delivery method, pickup-point address, phone, or customer full name.
 - Resolution: added static promo codes (`PROMO10`, `PROMO15`, `PROMO20`), persisted subtotal/discount/final total, added `DeliveryMethod` (`CDEK`, `OZON`) and checkout contact fields, and extended the Telegram bot flow to collect promo, delivery, address, phone, and FIO.

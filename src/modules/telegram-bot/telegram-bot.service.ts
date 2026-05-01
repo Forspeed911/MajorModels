@@ -68,6 +68,23 @@ const PROMO_DISCOUNTS = new Map<string, number>([
   ['PROMO15', 15],
   ['PROMO20', 20],
 ]);
+const BUTTON_LABELS = {
+  categories: '📂 Категории',
+  openCategories: '📂 Открыть категории',
+  cart: '🛒 Корзина',
+  checkout: '✅ Оформить заявку',
+  clearCart: '🧹 Очистить корзину',
+  promo: '🏷 Промокод',
+  home: '🏠 В меню',
+  addToCart: '➕ В корзину',
+  back: '↩️ Назад',
+  previousPage: '⬅️ Назад',
+  nextPage: 'Вперед ➡️',
+  previousPhoto: '⬅️ Фото',
+  nextPhoto: 'Фото ➡️',
+  cdek: '🚚 CDEK',
+  ozon: '📦 OZON',
+} as const;
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
@@ -576,9 +593,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private mainMenuKeyboard(): InlineKeyboardMarkup {
     return {
       inline_keyboard: [
-        [{ text: 'Категории', callback_data: CALLBACK_CATEGORIES }],
-        [{ text: 'Корзина', callback_data: CALLBACK_CART }],
-        [{ text: 'Оформить заявку', callback_data: CALLBACK_CHECKOUT }],
+        [{ text: BUTTON_LABELS.categories, callback_data: CALLBACK_CATEGORIES }],
+        [{ text: BUTTON_LABELS.cart, callback_data: CALLBACK_CART }],
+        [{ text: BUTTON_LABELS.checkout, callback_data: CALLBACK_CHECKOUT }],
       ],
     };
   }
@@ -594,8 +611,8 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     return {
       inline_keyboard: [
         ...categoryButtons,
-        [{ text: 'Корзина', callback_data: CALLBACK_CART }],
-        [{ text: 'В меню', callback_data: CALLBACK_HOME }],
+        [{ text: BUTTON_LABELS.cart, callback_data: CALLBACK_CART }],
+        [{ text: BUTTON_LABELS.home, callback_data: CALLBACK_HOME }],
       ],
     };
   }
@@ -621,7 +638,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     if (params.offset > 0) {
       const prevOffset = Math.max(0, params.offset - params.limit);
       navigationRow.push({
-        text: '< Назад',
+        text: BUTTON_LABELS.previousPage,
         callback_data: `cat:${params.categoryId}:${prevOffset}`,
       });
     }
@@ -629,7 +646,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     if (params.offset + params.limit < params.total) {
       const nextOffset = params.offset + params.limit;
       navigationRow.push({
-        text: 'Вперед >',
+        text: BUTTON_LABELS.nextPage,
         callback_data: `cat:${params.categoryId}:${nextOffset}`,
       });
     }
@@ -637,9 +654,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     const keyboardRows: InlineKeyboardButton[][] = [
       ...productRows,
       ...(navigationRow.length > 0 ? [navigationRow] : []),
-      [{ text: 'Категории', callback_data: CALLBACK_CATEGORIES }],
-      [{ text: 'Корзина', callback_data: CALLBACK_CART }],
-      [{ text: 'В меню', callback_data: CALLBACK_HOME }],
+      [{ text: BUTTON_LABELS.categories, callback_data: CALLBACK_CATEGORIES }],
+      [{ text: BUTTON_LABELS.cart, callback_data: CALLBACK_CART }],
+      [{ text: BUTTON_LABELS.home, callback_data: CALLBACK_HOME }],
     ];
 
     return { inline_keyboard: keyboardRows };
@@ -660,11 +677,11 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
       photoNavigationRow.push(
         {
-          text: '< Фото',
+          text: BUTTON_LABELS.previousPhoto,
           callback_data: `photo:${product.id}:${previousIndex}`,
         },
         {
-          text: 'Фото >',
+          text: BUTTON_LABELS.nextPhoto,
           callback_data: `photo:${product.id}:${nextIndex}`,
         },
       );
@@ -673,9 +690,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     return {
       inline_keyboard: [
         ...(photoNavigationRow.length > 0 ? [photoNavigationRow] : []),
-        [{ text: 'В корзину', callback_data: `add:${product.id}` }],
-        [{ text: 'Назад', callback_data: CALLBACK_BACK_TO_PRODUCTS }],
-        [{ text: 'В меню', callback_data: CALLBACK_HOME }],
+        [{ text: BUTTON_LABELS.addToCart, callback_data: `add:${product.id}` }],
+        [{ text: BUTTON_LABELS.back, callback_data: CALLBACK_BACK_TO_PRODUCTS }],
+        [{ text: BUTTON_LABELS.home, callback_data: CALLBACK_HOME }],
       ],
     };
   }
@@ -683,11 +700,11 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private cartKeyboard(): InlineKeyboardMarkup {
     return {
       inline_keyboard: [
-        [{ text: 'Промокод', callback_data: CALLBACK_PROMO }],
-        [{ text: 'Оформить заявку', callback_data: CALLBACK_CHECKOUT }],
-        [{ text: 'Очистить корзину', callback_data: CALLBACK_CLEAR_CART }],
-        [{ text: 'Категории', callback_data: CALLBACK_CATEGORIES }],
-        [{ text: 'В меню', callback_data: CALLBACK_HOME }],
+        [{ text: BUTTON_LABELS.promo, callback_data: CALLBACK_PROMO }],
+        [{ text: BUTTON_LABELS.checkout, callback_data: CALLBACK_CHECKOUT }],
+        [{ text: BUTTON_LABELS.clearCart, callback_data: CALLBACK_CLEAR_CART }],
+        [{ text: BUTTON_LABELS.categories, callback_data: CALLBACK_CATEGORIES }],
+        [{ text: BUTTON_LABELS.home, callback_data: CALLBACK_HOME }],
       ],
     };
   }
@@ -695,9 +712,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private deliveryMethodKeyboard(): InlineKeyboardMarkup {
     return {
       inline_keyboard: [
-        [{ text: 'CDEK', callback_data: `${DELIVERY_CALLBACK_PREFIX}CDEK` }],
-        [{ text: 'OZON', callback_data: `${DELIVERY_CALLBACK_PREFIX}OZON` }],
-        [{ text: 'Корзина', callback_data: CALLBACK_CART }],
+        [{ text: BUTTON_LABELS.cdek, callback_data: `${DELIVERY_CALLBACK_PREFIX}CDEK` }],
+        [{ text: BUTTON_LABELS.ozon, callback_data: `${DELIVERY_CALLBACK_PREFIX}OZON` }],
+        [{ text: BUTTON_LABELS.cart, callback_data: CALLBACK_CART }],
       ],
     };
   }
@@ -705,8 +722,8 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private emptyCartKeyboard(): InlineKeyboardMarkup {
     return {
       inline_keyboard: [
-        [{ text: 'Открыть категории', callback_data: CALLBACK_CATEGORIES }],
-        [{ text: 'В меню', callback_data: CALLBACK_HOME }],
+        [{ text: BUTTON_LABELS.openCategories, callback_data: CALLBACK_CATEGORIES }],
+        [{ text: BUTTON_LABELS.home, callback_data: CALLBACK_HOME }],
       ],
     };
   }

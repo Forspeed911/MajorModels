@@ -293,6 +293,7 @@ docker system df
 
 ```bash
 docker builder prune -f
+docker buildx prune -af
 ```
 
 Очистка неиспользуемых Docker images:
@@ -305,7 +306,10 @@ docker image prune -f
 
 ```bash
 docker system prune -f
+docker system prune -af
 ```
+
+Команда `docker system prune -af` удаляет неиспользуемые containers, networks, images и build cache, но не удаляет volumes без флага `--volumes`.
 
 После очистки повторить обновление:
 
@@ -323,6 +327,13 @@ tail -n 80 /tmp/majormodels-build.log
 ```
 
 `npm notice New major version of npm available` не является причиной падения. Причина обычно находится выше: `ENOSPC`, `EACCES`, `ECONNRESET`, `ERESOLVE`, `EINTEGRITY` или другая строка `npm ERR!`.
+
+Если в ошибке есть путь `/var/lib/containerd/...` и текст `no space left on device`, это нехватка места в Docker/containerd storage. После очистки проверить, что свободное место появилось:
+
+```bash
+df -h /var/lib/docker /var/lib/containerd /
+docker system df
+```
 
 Если места всё ещё не хватает, проверить самые большие директории:
 

@@ -19,9 +19,9 @@
 - Result: routine operations can be performed from one document without reading ExecPlans or source files.
 
 ### Problem: production updates can fail on small disks during Docker build
-- Context: `docker compose up -d --build` builds a new image and can fail around `npm ci` or layer extraction when Docker cache/images consume too much disk. The npm version notice is not the failure cause; the actionable error appears above it.
-- Resolution: added low-disk recovery commands to `manual.md` and updated `Dockerfile` to prune dev dependencies and npm cache after building.
-- Result: operators have a safe cleanup path that avoids deleting PostgreSQL volumes, and the runtime image keeps fewer unnecessary build-time packages.
+- Context: `docker compose up -d --build` builds a new image and can fail around `npm ci` or layer extraction when Docker cache/images consume too much disk. A confirmed failure showed `/var/lib/containerd/... failed to write compressed diff ... no space left on device`.
+- Resolution: added low-disk recovery commands to `manual.md`, updated `Dockerfile` to prune dev dependencies and npm cache after building, and moved `prisma` to runtime dependencies because `scripts/start-prod.sh` needs `./node_modules/.bin/prisma migrate deploy`.
+- Result: operators have a safe cleanup path that avoids deleting PostgreSQL volumes, and the runtime image keeps fewer unnecessary build-time packages without losing the Prisma CLI needed at startup.
 
 ### Problem: checkout needed promo discounts and fulfillment details before order submission
 - Context: the Telegram cart previously submitted only product items and Telegram profile data, so the admin did not receive promo, delivery method, pickup-point address, phone, or customer full name.

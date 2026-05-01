@@ -21,6 +21,7 @@
   - cards upload the product photo into Telegram
   - multiple photos can be browsed inside the card.
 - Added `manual.md` with operator instructions for deployment, price-list updates, and product photo updates.
+- Documented low-disk recovery steps for Docker updates and pruned dev dependencies from the production image after build.
 
 ## v0.10.0
 - Added promo-code support to order checkout:

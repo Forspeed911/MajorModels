@@ -3,12 +3,15 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
 FROM deps AS build
 WORKDIR /app
 COPY . .
-RUN npm run prisma:generate && npm run build
+RUN npm run prisma:generate \
+  && npm run build \
+  && npm prune --omit=dev \
+  && npm cache clean --force
 
 FROM node:20-alpine AS runner
 WORKDIR /app

@@ -272,7 +272,78 @@ docker compose -f docker-compose.prod.yml --env-file .env.production logs -f api
 curl -i http://127.0.0.1:3000/api/v1/health
 ```
 
-## 8. Что не делать
+## 8. Если при обновлении не хватает места
+
+При обновлении система собирает новый Docker image. На маленьком сервере ошибка может выглядеть как:
+
+```text
+no space left on device
+```
+
+или сборка может падать на `npm ci`, `npm run build`, `COPY`, `extracting`, `write`.
+
+Сначала проверить свободное место:
+
+```bash
+df -h
+docker system df
+```
+
+Безопасная очистка Docker build cache:
+
+```bash
+docker builder prune -f
+```
+
+Очистка неиспользуемых Docker images:
+
+```bash
+docker image prune -f
+```
+
+Более сильная очистка неиспользуемых Docker objects без удаления volumes:
+
+```bash
+docker system prune -f
+```
+
+После очистки повторить обновление:
+
+```bash
+cd /opt/majormodels
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+Если ошибка снова падает именно на `RUN npm ci`, посмотреть реальные строки ошибки выше `npm notice`:
+
+```bash
+cd /opt/majormodels
+docker compose -f docker-compose.prod.yml --env-file .env.production build --no-cache api 2>&1 | tee /tmp/majormodels-build.log
+tail -n 80 /tmp/majormodels-build.log
+```
+
+`npm notice New major version of npm available` не является причиной падения. Причина обычно находится выше: `ENOSPC`, `EACCES`, `ECONNRESET`, `ERESOLVE`, `EINTEGRITY` или другая строка `npm ERR!`.
+
+Если места всё ещё не хватает, проверить самые большие директории:
+
+```bash
+sudo du -h --max-depth=1 /opt | sort -h
+sudo du -h --max-depth=1 /var/lib/docker | sort -h
+```
+
+Важно: не удалять Docker volumes автоматически. В volume хранится PostgreSQL.
+
+Не запускать:
+
+```bash
+docker system prune -a --volumes
+docker volume prune
+docker compose down -v
+```
+
+Эти команды могут удалить данные БД.
+
+## 9. Что не делать
 
 Не хранить фотографии в git.
 
@@ -285,4 +356,3 @@ curl -i http://127.0.0.1:3000/api/v1/health
 ```bash
 majormodels_postgres_data_prod
 ```
-

@@ -18,6 +18,11 @@
 - Resolution: added root `manual.md` with production paths, deploy commands, price-list update workflow, photo directory rules, and sync commands.
 - Result: routine operations can be performed from one document without reading ExecPlans or source files.
 
+### Problem: production updates can fail on small disks during Docker build
+- Context: `docker compose up -d --build` builds a new image and can fail around `npm ci` or layer extraction when Docker cache/images consume too much disk. The npm version notice is not the failure cause; the actionable error appears above it.
+- Resolution: added low-disk recovery commands to `manual.md` and updated `Dockerfile` to prune dev dependencies and npm cache after building.
+- Result: operators have a safe cleanup path that avoids deleting PostgreSQL volumes, and the runtime image keeps fewer unnecessary build-time packages.
+
 ### Problem: checkout needed promo discounts and fulfillment details before order submission
 - Context: the Telegram cart previously submitted only product items and Telegram profile data, so the admin did not receive promo, delivery method, pickup-point address, phone, or customer full name.
 - Resolution: added static promo codes (`PROMO10`, `PROMO15`, `PROMO20`), persisted subtotal/discount/final total, added `DeliveryMethod` (`CDEK`, `OZON`) and checkout contact fields, and extended the Telegram bot flow to collect promo, delivery, address, phone, and FIO.
